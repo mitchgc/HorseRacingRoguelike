@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏇 Stable Manager - Horse Racing Game</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(249, 115, 22, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.8); }
+        }
+        
+        .surge-glow {
+            animation: pulse-glow 1s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">Loading game...</div>
+    
+    <!-- Load game modules -->
+    <script src="js/game-config.js"></script>
+    <script src="js/horse-system.js"></script>
+    <script src="js/scout-system.js"></script>
+    <script src="js/race-system.js"></script>
+    <script src="js/upgrade-system.js"></script>
+    
+    <!-- Load and render game -->
+    <script type="text/babel">
+        // Wait for modules to load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check if all modules loaded
+            const modules = ['GameConfig', 'HorseSystem', 'ScoutSystem', 'RaceSystem', 'UpgradeSystem'];
+            const allLoaded = modules.every(mod => window[mod] !== undefined);
+            
+            if (!allLoaded) {
+                console.error('Some modules failed to load:', modules.filter(mod => !window[mod]));
+                document.getElementById('root').innerHTML = '<div style="padding: 20px; color: red;">Error loading game modules. Please check the console.</div>';
+                return;
+            }
+            
+            // Load the game app content from external file using fetch
+            fetch('game-app.js')
+                .then(response => response.text())
+                .then(gameCode => {
+                    // Execute the game code
+                    const script = document.createElement('script');
+                    script.type = 'text/babel';
+                    script.text = gameCode + '\n\n// Render the game\nconst root = ReactDOM.createRoot(document.getElementById("root"));\nroot.render(React.createElement(window.StableRacingGame));';
+                    document.body.appendChild(script);
+                })
+                .catch(error => {
+                    console.error('Error loading game:', error);
+                    // If fetch fails (CORS), provide instructions
+                    document.getElementById('root').innerHTML = `
+                        <div style="padding: 40px; max-width: 600px; margin: 0 auto; font-family: sans-serif;">
+                            <h1 style="color: #1e40af;">🏇 Stable Manager</h1>
+                            <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                                <h2 style="color: #d97706; margin-top: 0;">⚠️ Local File Access Required</h2>
+                                <p>This game needs to be run through a web server. Here's how:</p>
+                            </div>
+                            
+                            <h3>Option 1: Use Python (Recommended)</h3>
+                            <pre style="background: #f3f4f6; padding: 15px; border-radius: 4px; overflow-x: auto;">
+cd "${window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'))}"
+python3 -m http.server 8000</pre>
+                            <p>Then open: <a href="http://localhost:8000" style="color: #2563eb;">http://localhost:8000</a></p>
+                            
+                            <h3>Option 2: Use the start script</h3>
+                            <pre style="background: #f3f4f6; padding: 15px; border-radius: 4px; overflow-x: auto;">
+cd "${window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'))}"
+./start-game.sh</pre>
+                            
+                            <h3>Option 3: Use Node.js http-server</h3>
+                            <pre style="background: #f3f4f6; padding: 15px; border-radius: 4px; overflow-x: auto;">
+npx http-server -p 8000</pre>
+                            
+                            <div style="background: #dbeafe; border: 2px solid #3b82f6; border-radius: 8px; padding: 20px; margin-top: 30px;">
+                                <h3 style="color: #1e40af; margin-top: 0;">📝 For Development</h3>
+                                <p>Once you're running a local server, you can:</p>
+                                <ul>
+                                    <li>Modify traits in <code>js/game-config.js</code></li>
+                                    <li>Work on breeding in <code>js/horse-system.js</code></li>
+                                    <li>Customize scout reports in <code>js/scout-system.js</code></li>
+                                    <li>Add new upgrades in <code>js/upgrade-system.js</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                });
+        });
+    </script>
+</body>
+</html>

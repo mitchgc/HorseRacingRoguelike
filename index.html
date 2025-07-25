@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏇 Stable Manager - Horse Racing Game</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .mobile-text-sm { font-size: 0.75rem; }
+            .mobile-p-2 { padding: 0.5rem; }
+            .mobile-gap-1 { gap: 0.25rem; }
+            .mobile-grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+            .mobile-text-xs { font-size: 0.625rem; }
+        }
+        
+        /* Custom animations */
+        @keyframes pulse-glow {
+            0%, 100% { 
+                box-shadow: 0 0 10px rgba(249, 115, 22, 0.6), 0 0 20px rgba(249, 115, 22, 0.3); 
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 20px rgba(249, 115, 22, 0.9), 0 0 40px rgba(249, 115, 22, 0.5); 
+                transform: scale(1.02);
+            }
+        }
+        
+        .surge-glow {
+            animation: pulse-glow 0.8s ease-in-out infinite;
+        }
+        
+        @keyframes speed-streak {
+            0% { transform: translateX(-100%) scaleX(0); }
+            50% { transform: translateX(0%) scaleX(1); }
+            100% { transform: translateX(100%) scaleX(0); }
+        }
+        
+        .speed-streak {
+            animation: speed-streak 1.5s ease-in-out infinite;
+        }
+        
+        /* Tooltip styles */
+        .tooltip {
+            position: relative;
+        }
+        
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            margin-bottom: 5px;
+        }
+        
+        .tooltip::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        
+        .tooltip:hover::after,
+        .tooltip:hover::before {
+            opacity: 1;
+        }
+        
+        /* Ensure touch targets are large enough on mobile */
+        @media (max-width: 768px) {
+            button, .cursor-pointer {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+        
+        /* Prevent zoom on input focus on iOS */
+        @media screen and (-webkit-min-device-pixel-ratio: 0) {
+            select, textarea, input[type="text"], input[type="password"], 
+            input[type="datetime"], input[type="datetime-local"], 
+            input[type="date"], input[type="month"], input[type="time"], 
+            input[type="week"], input[type="number"], input[type="email"], 
+            input[type="url"] {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="text-align: center;">
+                <h1 style="font-size: 2rem; margin-bottom: 1rem;">🐎 Loading Horse Racing Game...</h1>
+                <p style="color: #666;">Please wait a moment while we prepare the stables</p>
+                <div style="margin-top: 2rem;">
+                    <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    </div>
+    
+    <!-- Load all game modules (these don't contain JSX) -->
+    <script src="js/game-config.js"></script>
+    <script src="js/horse-system.js"></script>
+    <script src="js/scout-system.js"></script>
+    <script src="js/race-system.js"></script>
+    <script src="js/upgrade-system.js"></script>
+    
+    <!-- Load the main game app with JSX -->
+    <script type="text/babel" src="game-app.js"></script>
+    
+    <!-- Start the game -->
+    <script type="text/babel">
+        // Function to check if all modules are loaded and start the game
+        function tryStartGame(attemptNumber = 1) {
+            console.log(`Attempting to start game (attempt ${attemptNumber})...`);
+            
+            // Verify all modules loaded
+            const modules = ['GameConfig', 'HorseSystem', 'ScoutSystem', 'RaceSystem', 'UpgradeSystem', 'StableRacingGame'];
+            const allLoaded = modules.every(mod => window[mod] !== undefined);
+            
+            if (allLoaded) {
+                // React 18 rendering
+                const root = ReactDOM.createRoot(document.getElementById('root'));
+                root.render(React.createElement(window.StableRacingGame));
+                console.log('Game started successfully!');
+            } else if (attemptNumber < 10) {
+                // Retry after a short delay
+                console.log('Some modules not ready yet, retrying...');
+                setTimeout(() => tryStartGame(attemptNumber + 1), 500);
+            } else {
+                console.error('Failed to load after 10 attempts. Missing modules:', modules.filter(mod => !window[mod]));
+                document.getElementById('root').innerHTML = '<div style="padding: 20px; color: red;">Error loading game modules. Please refresh the page to try again.</div>';
+            }
+        }
+        
+        // Start trying once DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => tryStartGame());
+        } else {
+            // DOM already loaded, start immediately
+            tryStartGame();
+        }
+    </script>
+</body>
+</html>

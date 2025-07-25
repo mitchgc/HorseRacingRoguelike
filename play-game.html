@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏇 Stable Manager - Horse Racing Game</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .mobile-text-sm { font-size: 0.75rem; }
+            .mobile-p-2 { padding: 0.5rem; }
+            .mobile-gap-1 { gap: 0.25rem; }
+            .mobile-grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+            .mobile-text-xs { font-size: 0.625rem; }
+        }
+        
+        /* Custom animations */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(249, 115, 22, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.8); }
+        }
+        
+        .surge-glow {
+            animation: pulse-glow 1s ease-in-out infinite;
+        }
+        
+        /* Ensure touch targets are large enough on mobile */
+        @media (max-width: 768px) {
+            button, .cursor-pointer {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+        
+        /* Prevent zoom on input focus on iOS */
+        @media screen and (-webkit-min-device-pixel-ratio: 0) {
+            select, textarea, input[type="text"], input[type="password"], 
+            input[type="datetime"], input[type="datetime-local"], 
+            input[type="date"], input[type="month"], input[type="time"], 
+            input[type="week"], input[type="number"], input[type="email"], 
+            input[type="url"] {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">Loading game...</div>
+    
+    <!-- Load all game modules inline to avoid CORS issues -->
+    <script>
+        // First, load a simple test module to check if inline scripts work
+        window.testLoaded = true;
+        console.log('Inline scripts working:', window.testLoaded);
+    </script>
+    
+    <!-- Load game modules from external files -->
+    <script src="js/game-config.js"></script>
+    <script src="js/horse-system.js"></script>
+    <script src="js/scout-system.js"></script>
+    <script src="js/race-system.js"></script>
+    <script src="js/upgrade-system.js"></script>
+    
+    <!-- Check if modules loaded -->
+    <script>
+        console.log('Modules loaded check:');
+        console.log('GameConfig:', !!window.GameConfig);
+        console.log('HorseSystem:', !!window.HorseSystem);
+        console.log('ScoutSystem:', !!window.ScoutSystem);
+        console.log('RaceSystem:', !!window.RaceSystem);
+        console.log('UpgradeSystem:', !!window.UpgradeSystem);
+    </script>
+    
+    <!-- Load the main game app inline -->
+    <script type="text/babel" data-type="module">
+        console.log('Loading game app...');
+        
+        const { useState, useEffect, useCallback, useMemo } = React;
+
+        // Horse icon component
+        function HorseIcon({ color = '#8B4513', size = 'md' }) {
+          const sizeClasses = {
+            sm: 'w-4 h-4 text-xs',
+            md: 'w-6 h-6 text-sm',
+            lg: 'w-8 h-8 text-lg',
+            xl: 'w-10 h-10 text-xl'
+          };
+
+          return React.createElement('div', {
+            className: `${sizeClasses[size]} rounded-full flex items-center justify-center`,
+            style: { backgroundColor: color }
+          }, '🏇');
+        }
+
+        // Trait badge component
+        function TraitBadge({ trait }) {
+          const { TRAIT_DEFINITIONS } = window.GameConfig;
+          const traitDef = TRAIT_DEFINITIONS[trait];
+          if (!traitDef) return null;
+
+          return React.createElement('span', {
+            className: `px-2 py-1 bg-${traitDef.color}-100 text-${traitDef.color}-800 rounded text-xs font-medium`
+          }, `${traitDef.icon} ${traitDef.name}`);
+        }
+
+        // Simple test component to verify React works
+        function TestGame() {
+          const [count, setCount] = useState(0);
+          
+          return React.createElement('div', { className: 'p-8 bg-green-600 text-white min-h-screen' },
+            React.createElement('h1', { className: 'text-3xl font-bold mb-4' }, '🏇 Stable Manager'),
+            React.createElement('p', { className: 'mb-4' }, 'React is working! Counter: ' + count),
+            React.createElement('button', {
+              className: 'bg-white text-green-600 px-4 py-2 rounded',
+              onClick: () => setCount(count + 1)
+            }, 'Click me'),
+            React.createElement('div', { className: 'mt-8' },
+              React.createElement('p', null, 'GameConfig loaded: ' + (window.GameConfig ? '✅' : '❌')),
+              React.createElement('p', null, 'HorseSystem loaded: ' + (window.HorseSystem ? '✅' : '❌')),
+              React.createElement('p', null, 'ScoutSystem loaded: ' + (window.ScoutSystem ? '✅' : '❌')),
+              React.createElement('p', null, 'RaceSystem loaded: ' + (window.RaceSystem ? '✅' : '❌')),
+              React.createElement('p', null, 'UpgradeSystem loaded: ' + (window.UpgradeSystem ? '✅' : '❌'))
+            )
+          );
+        }
+
+        // Wait for page to load
+        window.addEventListener('DOMContentLoaded', () => {
+          console.log('DOM loaded, initializing game...');
+          
+          try {
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(React.createElement(TestGame));
+            console.log('Test game rendered successfully!');
+          } catch (error) {
+            console.error('Error rendering game:', error);
+            document.getElementById('root').innerHTML = '<div style="color: red; padding: 20px;">Error: ' + error.message + '</div>';
+          }
+        });
+    </script>
+</body>
+</html>

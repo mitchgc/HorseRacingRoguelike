@@ -1,0 +1,1562 @@
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+
+// Constants
+const GAME_CONSTANTS = {
+  INITIAL_WALLET: 100,
+  WIN_CONDITION: 1000,
+  BASE_SPEED: 45,
+  SPEED_RANGE: 10,
+  FATIGUE_PER_RACE: 20,
+  MAX_RACE_TIME: 50,
+  RACE_INTERVAL_MS: 100,
+  AI_HORSES_COUNT: 7,
+  NEW_HORSE_BASE_COST: 0,
+  NEW_HORSE_COST_INCREMENT: 0,
+  MIN_ENTRY_MULTIPLIER: 1.15,
+  BREED_COST: 0
+};
+
+const HORSE_NAMES = [
+  'Thunder Bolt', 'Lightning Strike', 'Wind Runner', 'Storm Chaser',
+  'Fire Spirit', 'Golden Arrow', 'Silver Bullet', 'Midnight Express',
+  'Royal Champion', 'Swift Shadow', 'Desert Storm', 'Ocean Breeze',
+  'Mountain King', 'Star Dancer', 'Wild Thunder', 'Blazing Comet',
+  'Dawn Rider', 'Storm Cloud', 'Flash Point', 'Night Fury'
+];
+
+const RACE_DISTANCES = [800, 1000, 1200, 1400, 1600];
+
+const BOOST_TYPES = [
+  { type: 'energy', name: 'Energy Drink', desc: '+30% performance this race', cost: 25 },
+  { type: 'focus', name: 'Focus Training', desc: '+20% performance this race', cost: 15 },
+  { type: 'luck', name: 'Lucky Charm', desc: '+10-40% random performance boost', cost: 10 }
+];
+
+const GAME_PHASES = {
+  HORSE_SELECTION: 'horseSelection',
+  RACING: 'racing',
+  POST_RACE: 'postRace',
+  UPGRADE: 'upgrade',
+  HORSE_PICKER: 'horsePicker',
+  BREEDING: 'breeding'
+};
+
+// Trait definitions with math impact
+const TRAIT_DEFINITIONS = {
+  earlySpeed: {
+    name: 'Early Speed',
+    icon: '⚡',
+    color: 'yellow',
+    description: 'Quick out of the gate',
+    phases: ['earlyBurst', 'quickStart'],
+    phaseChance: 0.35,
+    powerModifier: 1.2,
+    mathImpact: '+20% speed boost in first 30% of race'
+  },
+  closer: {
+    name: 'Closer',
+    icon: '🚀',
+    color: 'purple',
+    description: 'Strong finish',
+    phases: ['finalKick', 'desperateCharge'],
+    phaseChance: 0.40,
+    powerModifier: 1.3,
+    mathImpact: '+30% speed boost in final 30% of race'
+  },
+  mudder: {
+    name: 'Mudder',
+    icon: '🌧️',
+    color: 'blue',
+    description: 'Thrives in tough conditions',
+    phases: ['steadyPush', 'grind'],
+    phaseChance: 0.30,
+    powerModifier: 1.1,
+    mathImpact: '+10% consistent speed, less variance'
+  },
+  frontRunner: {
+    name: 'Front Runner',
+    icon: '🏃',
+    color: 'orange',
+    description: 'Likes to lead',
+    phases: ['earlyBurst', 'maintainLead'],
+    phaseChance: 0.35,
+    powerModifier: 1.15,
+    mathImpact: '+15% speed when in 1st place'
+  },
+  versatile: {
+    name: 'Versatile',
+    icon: '🎯',
+    color: 'green',
+    description: 'Adapts to any situation',
+    phases: ['midRaceSurge', 'steadyPush'],
+    phaseChance: 0.25,
+    powerModifier: 1.0,
+    mathImpact: 'No distance penalty, adapts to all tracks'
+  },
+  sprinter: {
+    name: 'Sprinter',
+    icon: '💨',
+    color: 'red',
+    description: 'Explosive speed bursts',
+    phases: ['sprint', 'quickBurst'],
+    phaseChance: 0.45,
+    powerModifier: 1.4,
+    mathImpact: '+40% speed for 5 second bursts'
+  }
+};
+
+// Phase definitions
+const PHASE_DEFINITIONS = {
+  earlyBurst: { baseBonus: 0.6, baseDuration: 8, type: 'surge' },
+  quickStart: { baseBonus: 0.5, baseDuration: 6, type: 'surge' },
+  midRaceSurge: { baseBonus: 0.4, baseDuration: 10, type: 'surge' },
+  finalKick: { baseBonus: 0.7, baseDuration: 12, type: 'surge' },
+  desperateCharge: { baseBonus: 0.8, baseDuration: 10, type: 'surge' },
+  steadyPush: { baseBonus: 0.3, baseDuration: 15, type: 'steady' },
+  grind: { baseBonus: 0.25, baseDuration: 20, type: 'steady' },
+  maintainLead: { baseBonus: 0.35, baseDuration: 12, type: 'steady' },
+  sprint: { baseBonus: 0.9, baseDuration: 5, type: 'surge' },
+  quickBurst: { baseBonus: 0.7, baseDuration: 4, type: 'surge' },
+  struggle: { baseBonus: -0.4, baseDuration: 8, type: 'struggle' },
+  fade: { baseBonus: -0.3, baseDuration: 10, type: 'struggle' }
+};
+
+// Utility functions
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+const randomBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+const randomChoice = (array) => array[Math.floor(Math.random() * array.length)];
+const shuffleArray = (array) => [...array].sort(() => 0.5 - Math.random());
+
+// Normal distribution for breeding
+const normalDistribution = (mean, stdDev) => {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return mean + stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+};
+
+// Memoized Components
+const HorseIcon = React.memo(({ color, size = 'md' }) => {
+  const sizeClasses = {
+    sm: 'w-4 h-4 text-xs',
+    md: 'w-6 h-6 text-sm',
+    lg: 'w-8 h-8 text-lg',
+    xl: 'w-10 h-10 text-xl'
+  };
+
+  return (
+    <div 
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center`}
+      style={{ backgroundColor: color }}
+    >
+      🏇
+    </div>
+  );
+});
+
+const StatBar = React.memo(({ value, maxValue = 100, color = 'blue', label, width = 'w-16' }) => (
+  <div className="text-center">
+    {label && <div className="text-sm font-medium">{value}</div>}
+    <div className={`${width} bg-gray-200 rounded-full h-2 mx-auto`}>
+      <div 
+        className="h-2 rounded-full transition-all duration-300"
+        style={{ 
+          width: `${(value / maxValue) * 100}%`,
+          backgroundColor: color === 'blue' ? '#3B82F6' : 
+                          color === 'green' ? '#10B981' : 
+                          color === 'purple' ? '#8B5CF6' : 
+                          color === 'red' ? '#EF4444' : '#6B7280'
+        }}
+      />
+    </div>
+  </div>
+));
+
+const TraitBadge = React.memo(({ trait }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const traitDef = TRAIT_DEFINITIONS[trait];
+  const colorStyles = {
+    yellow: 'bg-yellow-100 text-yellow-800',
+    purple: 'bg-purple-100 text-purple-800',
+    blue: 'bg-blue-100 text-blue-800',
+    orange: 'bg-orange-100 text-orange-800',
+    green: 'bg-green-100 text-green-800',
+    red: 'bg-red-100 text-red-800'
+  };
+  
+  return (
+    <div className="relative inline-block">
+      <div 
+        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorStyles[traitDef.color]} cursor-help`}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        <span className="mr-1">{traitDef.icon}</span>
+        {traitDef.name}
+      </div>
+      {showTooltip && (
+        <div className="absolute z-10 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap">
+          <div className="font-bold mb-1">{traitDef.name}</div>
+          <div>{traitDef.mathImpact}</div>
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+            <div className="border-4 border-transparent border-t-gray-900"></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+const Header = React.memo(({ wallet, raceNumber, horsesCount, raceDistance }) => (
+  <div className="text-center mb-6">
+    <h1 className="text-4xl font-bold text-white mb-2">🏇 Stable Manager</h1>
+    <div className="bg-white rounded-lg p-4 inline-block shadow-lg">
+      <div className="text-2xl font-bold text-green-600">
+        Wallet: ${wallet} | Race: {raceNumber}
+      </div>
+      <div className="text-sm text-gray-600">
+        Stable Size: {horsesCount} horses | Goal: ${GAME_CONSTANTS.WIN_CONDITION} | Distance: {raceDistance}m
+      </div>
+    </div>
+  </div>
+));
+
+const GameOverModal = React.memo(({ hasWon, onRestart }) => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-8 text-center shadow-2xl">
+      <h2 className={`text-3xl font-bold mb-4 ${hasWon ? 'text-green-600' : 'text-red-600'}`}>
+        {hasWon ? '🎉 Stable Empire Built!' : '💸 Stable Bankrupt'}
+      </h2>
+      <p className="text-lg mb-4">
+        {hasWon ? 'You built a racing dynasty!' : 'Your stable ran out of money!'}
+      </p>
+      <button
+        onClick={onRestart}
+        className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600 transition-colors"
+      >
+        Start New Stable
+      </button>
+    </div>
+  </div>
+));
+
+const EntryFeeSelector = React.memo(({ fees, selectedFee, onSelectFee, wallet }) => (
+  <div className="mb-6">
+    <h3 className="text-lg font-bold mb-3">Select Entry Fee</h3>
+    <div className="grid grid-cols-3 gap-2">
+      {fees.map(fee => (
+        <button
+          key={fee.amount}
+          onClick={() => onSelectFee(fee)}
+          disabled={wallet < fee.amount}
+          className={`p-3 border-2 rounded-lg transition-all ${
+            selectedFee?.amount === fee.amount
+              ? 'border-green-500 bg-green-50'
+              : wallet >= fee.amount
+              ? 'border-gray-300 hover:border-green-400'
+              : 'border-gray-300 bg-gray-100 cursor-not-allowed opacity-50'
+          }`}
+        >
+          <div className="font-bold">${fee.amount}</div>
+          <div className="text-xs text-gray-600">{fee.label} Stakes</div>
+          <div className="text-xs text-green-600">Prize: {fee.multiplier}x pool</div>
+        </button>
+      ))}
+    </div>
+  </div>
+));
+
+const HorseCard = React.memo(({ horse, isSelected, onSelect, raceDistance, prizePool, entryFee }) => {
+  const distanceFit = Math.max(0, 100 - Math.abs(horse.distancePreference - (raceDistance / 20)));
+  
+  return (
+    <div
+      onClick={onSelect}
+      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+        isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
+      }`}
+    >
+      <div className="grid grid-cols-6 gap-4 items-center">
+        <div className="flex items-center space-x-3 col-span-2">
+          <HorseIcon color={horse.color} size="lg" />
+          <div>
+            <div className="font-bold">{horse.name}</div>
+            {horse.fatigue > 0 && (
+              <div className="text-xs text-red-600">Fatigue: {horse.fatigue}%</div>
+            )}
+            <div className="flex flex-wrap gap-1 mt-1">
+              {horse.traits.map(trait => (
+                <TraitBadge key={trait} trait={trait} />
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <StatBar value={horse.speed} color="blue" label={horse.speed} />
+        <StatBar value={horse.boosterPower} color="red" label={horse.boosterPower} />
+        <div>
+          <StatBar value={distanceFit} color="purple" label={distanceFit} />
+          {distanceFit < 60 && (
+            <div className="text-xs text-orange-600 mt-1">Poor fit</div>
+          )}
+        </div>
+        
+        <div className="text-center">
+          {isSelected && entryFee && (
+            <div>
+              <div className="text-green-600 font-bold text-sm">
+                ${prizePool.first}/${prizePool.second}/${prizePool.third}
+              </div>
+              <div className="text-xs text-gray-500">Win/Place/Show</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const RaceTrack = React.memo(({ horses, racePositions, selectedHorse, entryFee }) => (
+  <div className="bg-white rounded-lg p-6 shadow-lg">
+    <h2 className="text-2xl font-bold mb-4">Race in Progress!</h2>
+    <div className="space-y-2">
+      {horses.map(horse => {
+        const position = racePositions[horse.id]?.position || 0;
+        const phaseInfo = racePositions[horse.id]?.phaseInfo;
+        const isInSurge = phaseInfo?.type === 'surge';
+        const isPlayerHorse = horse.id === selectedHorse.id;
+        
+        return (
+          <div key={horse.id} className="flex items-center space-x-4">
+            <div className={`w-32 text-sm font-medium truncate flex items-center ${isPlayerHorse ? 'text-blue-600 font-bold' : ''}`}>
+              <HorseIcon color={horse.color} size="md" />
+              <span className="ml-2">{horse.name}</span>
+            </div>
+            <div className="flex-1 flex items-center space-x-2">
+              <div className="flex-1 bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                {isInSurge && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-400 via-red-500 to-yellow-400 opacity-30 animate-pulse" />
+                )}
+                <div
+                  className={`h-6 rounded-full transition-all duration-100 flex items-center justify-end pr-2 relative ${
+                    isInSurge ? 'shadow-lg' : ''
+                  }`}
+                  style={{
+                    width: `${position}%`,
+                    backgroundColor: horse.color,
+                    boxShadow: isInSurge ? `0 0 20px ${horse.color}` : ''
+                  }}
+                >
+                  <span className="text-white text-xs font-bold relative z-10">🏇</span>
+                  {isInSurge && (
+                    <div className="absolute -right-8 top-1/2 -translate-y-1/2 text-yellow-400 animate-pulse">✨</div>
+                  )}
+                </div>
+              </div>
+              <div className="w-24 text-right">
+                {phaseInfo && (
+                  <span className={`text-xs font-bold ${
+                    phaseInfo.type === 'surge' ? 'text-orange-500' : 
+                    phaseInfo.type === 'steady' ? 'text-blue-500' : 
+                    'text-red-500'
+                  }`}>
+                    {phaseInfo.name}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+    <div className="mt-4 p-3 bg-blue-50 rounded-lg text-center">
+      <span className="text-lg">🎯 Running: </span>
+      <span className="font-bold text-blue-600">{selectedHorse.name}</span>
+      <span className="text-sm text-gray-600 ml-2">(${entryFee.amount} entry fee)</span>
+    </div>
+  </div>
+));
+
+const HorsePicker = React.memo(({ horses, onSelect, title = "Select a Horse", excludeHorseId = null }) => (
+  <div className="bg-white rounded-lg p-6 shadow-lg">
+    <h2 className="text-2xl font-bold mb-4">{title}</h2>
+    <div className="space-y-2">
+      {horses.filter(h => h.id !== excludeHorseId).map(horse => (
+        <div
+          key={horse.id}
+          onClick={() => onSelect(horse)}
+          className="p-4 border-2 rounded-lg cursor-pointer transition-all hover:border-blue-500 hover:bg-blue-50"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <HorseIcon color={horse.color} size="lg" />
+              <div>
+                <div className="font-bold">{horse.name}</div>
+                <div className="flex gap-1 mt-1">
+                  {horse.traits.map(trait => (
+                    <TraitBadge key={trait} trait={trait} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="text-center">
+                <div className="text-xs text-gray-600">Speed</div>
+                <div className="font-bold">{horse.speed}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xs text-gray-600">Booster Power</div>
+                <div className="font-bold">{horse.boosterPower}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+));
+
+const BreedingInterface = React.memo(({ horses, onBreed, onCancel, wallet }) => {
+  const [parent1, setParent1] = useState(null);
+  const [parent2, setParent2] = useState(null);
+  
+  const canBreed = parent1 && parent2 && parent1.id !== parent2.id;
+  
+  return (
+    <div className="bg-white rounded-lg p-6 shadow-lg">
+      <h2 className="text-2xl font-bold mb-4">Breed Horses 💕</h2>
+      <div className="text-sm text-gray-600 mb-4">
+        Select two horses to breed. Breeding is free!
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <h3 className="font-bold mb-2">Parent 1</h3>
+          {parent1 ? (
+            <div className="p-4 border-2 border-green-500 rounded-lg bg-green-50">
+              <div className="flex items-center space-x-3">
+                <HorseIcon color={parent1.color} size="lg" />
+                <div>
+                  <div className="font-bold">{parent1.name}</div>
+                  <div className="text-sm">Speed: {parent1.speed} | Booster: {parent1.boosterPower}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setParent1(null)}
+                className="mt-2 text-xs text-red-600 hover:underline"
+              >
+                Change
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {horses.map(horse => (
+                <div
+                  key={horse.id}
+                  onClick={() => setParent1(horse)}
+                  className="p-2 border rounded cursor-pointer hover:bg-gray-50"
+                >
+                  <div className="flex items-center space-x-2">
+                    <HorseIcon color={horse.color} size="md" />
+                    <span className="text-sm">{horse.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div>
+          <h3 className="font-bold mb-2">Parent 2</h3>
+          {parent2 ? (
+            <div className="p-4 border-2 border-green-500 rounded-lg bg-green-50">
+              <div className="flex items-center space-x-3">
+                <HorseIcon color={parent2.color} size="lg" />
+                <div>
+                  <div className="font-bold">{parent2.name}</div>
+                  <div className="text-sm">Speed: {parent2.speed} | Booster: {parent2.boosterPower}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setParent2(null)}
+                className="mt-2 text-xs text-red-600 hover:underline"
+              >
+                Change
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {horses.filter(h => h.id !== parent1?.id).map(horse => (
+                <div
+                  key={horse.id}
+                  onClick={() => setParent2(horse)}
+                  className="p-2 border rounded cursor-pointer hover:bg-gray-50"
+                >
+                  <div className="flex items-center space-x-2">
+                    <HorseIcon color={horse.color} size="md" />
+                    <span className="text-sm">{horse.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex justify-between">
+        <button
+          onClick={onCancel}
+          className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => canBreed && onBreed(parent1, parent2)}
+          disabled={!canBreed}
+          className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 disabled:bg-gray-400 transition-colors"
+        >
+          Breed Horses (Free)
+        </button>
+      </div>
+    </div>
+  );
+});
+
+// Scout Report Component
+const ScoutReport = React.memo(({ aiHorses, scoutReports }) => (
+  <div className="mt-6">
+    <h3 className="text-lg font-bold mb-3 text-red-600">Scout Report</h3>
+    <div className="bg-gray-50 rounded-lg p-4">
+      <div className="space-y-2">
+        {aiHorses.map(horse => {
+          const overallScore = horse.speed + horse.boosterPower;
+          const reputation = overallScore > 140 ? 'Elite' : 
+                           overallScore > 120 ? 'Strong' : 
+                           overallScore > 100 ? 'Rising' :
+                           overallScore > 80 ? 'Average' : 'Weak';
+          const reputationColor = overallScore > 140 ? 'text-red-600' : 
+                                overallScore > 120 ? 'text-yellow-600' : 
+                                overallScore > 100 ? 'text-green-600' :
+                                overallScore > 80 ? 'text-gray-600' : 'text-gray-400';
+          
+          const scoutNotes = scoutReports[horse.id] || [];
+          
+          return (
+            <div key={horse.id} className="border-b border-gray-200 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <HorseIcon color={horse.color} size="sm" />
+                  <span className="text-sm font-medium">{horse.name}</span>
+                  <div className="flex gap-1">
+                    {horse.traits.map(trait => (
+                      <TraitBadge key={trait} trait={trait} />
+                    ))}
+                  </div>
+                </div>
+                <span className={`text-xs font-bold ${reputationColor}`}>
+                  {reputation}
+                </span>
+              </div>
+              {scoutNotes.length > 0 ? (
+                <div className="text-xs text-gray-600 mt-1 ml-8">
+                  {scoutNotes.join(' • ')}
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 mt-1 ml-8 italic">
+                  Unknown
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+));
+
+// Main Game Component
+const StableRacingGame = () => {
+  const [wallet, setWallet] = useState(GAME_CONSTANTS.INITIAL_WALLET);
+  const [gamePhase, setGamePhase] = useState(GAME_PHASES.HORSE_SELECTION);
+  const [playerHorses, setPlayerHorses] = useState([]);
+  const [aiHorses, setAiHorses] = useState([]);
+  const [selectedHorse, setSelectedHorse] = useState(null);
+  const [selectedEntryFee, setSelectedEntryFee] = useState(null);
+  const [raceResults, setRaceResults] = useState([]);
+  const [raceNumber, setRaceNumber] = useState(1);
+  const [racePositions, setRacePositions] = useState({});
+  const [isRacing, setIsRacing] = useState(false);
+  const [upgradeOptions, setUpgradeOptions] = useState([]);
+  const [raceDistance, setRaceDistance] = useState(1200);
+  const [selectedBoost, setSelectedBoost] = useState(null);
+  const [pendingUpgrade, setPendingUpgrade] = useState(null);
+  const [lastRaceResult, setLastRaceResult] = useState(null);
+  const [scoutReports, setScoutReports] = useState({});
+  
+  // Use ref for race interval to prevent memory leaks
+  const raceIntervalRef = useRef(null);
+
+  // Calculate dynamic entry fees
+  const entryFees = useMemo(() => {
+    const minBet = Math.floor(10 * Math.pow(GAME_CONSTANTS.MIN_ENTRY_MULTIPLIER, raceNumber - 1));
+    const maxAllowed = Math.min(wallet, 200);
+    
+    return [
+      { amount: Math.min(minBet, maxAllowed), multiplier: 1, label: 'Min' },
+      { amount: Math.min(Math.floor(minBet * 2.5), maxAllowed), multiplier: 2, label: 'Med' },
+      { amount: Math.min(Math.floor(minBet * 5), maxAllowed), multiplier: 3, label: 'Max' }
+    ].filter(fee => fee.amount <= wallet && fee.amount > 0);
+  }, [raceNumber, wallet]);
+
+  // Horse generation with traits
+  const generateHorse = useCallback((isPlayer = false, raceNum = 1, specificDistance = null) => {
+    const baseSpeed = Math.max(30, GAME_CONSTANTS.BASE_SPEED + (raceNum * 2));
+    const speed = randomBetween(
+      baseSpeed - GAME_CONSTANTS.SPEED_RANGE,
+      baseSpeed + GAME_CONSTANTS.SPEED_RANGE
+    );
+    const boosterPower = randomBetween(30, 80);
+    
+    const distancePreference = specificDistance || randomBetween(1, 100);
+    
+    const allTraits = Object.keys(TRAIT_DEFINITIONS);
+    const numTraits = Math.random() > 0.7 ? 2 : 1;
+    const traits = shuffleArray(allTraits).slice(0, numTraits);
+    
+    const statBonus = isPlayer && raceNum === 1 ? 3 : 0;
+    
+    return {
+      id: Math.random(),
+      name: randomChoice(HORSE_NAMES),
+      speed: clamp(speed + statBonus, 30, 100),
+      boosterPower: Math.min(100, boosterPower + statBonus),
+      distancePreference,
+      color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+      isPlayer,
+      fatigue: 0,
+      traits,
+      currentPhase: null
+    };
+  }, []);
+
+  // Breeding algorithm
+  const breedHorses = useCallback((parent1, parent2) => {
+    const avgSpeed = (parent1.speed + parent2.speed) / 2;
+    const avgBoosterPower = (parent1.boosterPower + parent2.boosterPower) / 2;
+    const avgDistance = (parent1.distancePreference + parent2.distancePreference) / 2;
+    
+    const breedingBonus = 1.05;
+    
+    const speedVariation = normalDistribution(0, 5);
+    const boosterVariation = normalDistribution(0, 8);
+    const distanceVariation = normalDistribution(0, 10);
+    
+    const newSpeed = clamp(Math.round((avgSpeed * breedingBonus) + speedVariation), 30, 100);
+    const newBoosterPower = clamp(Math.round((avgBoosterPower * breedingBonus) + boosterVariation), 20, 100);
+    const newDistance = clamp(Math.round(avgDistance + distanceVariation), 1, 100);
+    
+    const allParentTraits = [...new Set([...parent1.traits, ...parent2.traits])];
+    const inheritedTraits = [];
+    
+    allParentTraits.forEach(trait => {
+      if (Math.random() < 0.6) {
+        inheritedTraits.push(trait);
+      }
+    });
+    
+    if (Math.random() < 0.2) {
+      const availableTraits = Object.keys(TRAIT_DEFINITIONS).filter(t => !inheritedTraits.includes(t));
+      if (availableTraits.length > 0) {
+        inheritedTraits.push(randomChoice(availableTraits));
+      }
+    }
+    
+    const finalTraits = shuffleArray(inheritedTraits).slice(0, 3);
+    
+    const parent1Hue = parseInt(parent1.color.match(/\d+/)[0]);
+    const parent2Hue = parseInt(parent2.color.match(/\d+/)[0]);
+    const newHue = Math.round((parent1Hue + parent2Hue) / 2 + randomBetween(-30, 30)) % 360;
+    
+    return {
+      id: Math.random(),
+      name: randomChoice(HORSE_NAMES),
+      speed: newSpeed,
+      boosterPower: newBoosterPower,
+      distancePreference: newDistance,
+      color: `hsl(${newHue}, 70%, 50%)`,
+      isPlayer: true,
+      fatigue: 0,
+      traits: finalTraits.length > 0 ? finalTraits : [randomChoice(Object.keys(TRAIT_DEFINITIONS))],
+      parents: [parent1.name, parent2.name]
+    };
+  }, []);
+
+  // Prize pool calculation based on entry fee
+  const calculatePrizePool = useCallback((entryFee) => {
+    if (!entryFee) return { first: 0, second: 0, third: 0 };
+    
+    const basePool = 50 + (raceNumber * 10);
+    const totalPool = basePool * entryFee.multiplier;
+    
+    return {
+      first: Math.floor(totalPool * 0.7),
+      second: Math.floor(totalPool * 0.2),
+      third: Math.floor(totalPool * 0.1)
+    };
+  }, [raceNumber]);
+
+  // Generate AI horses and scout reports
+  const generateAIHorses = useCallback(() => {
+    const newDistance = randomChoice(RACE_DISTANCES);
+    setRaceDistance(newDistance);
+    
+    const newAiHorses = Array.from({ length: GAME_CONSTANTS.AI_HORSES_COUNT }, () => 
+      generateHorse(false, raceNumber)
+    );
+    setAiHorses(newAiHorses);
+    
+    // Generate scout reports based on best player horse
+    const bestPlayerHorse = playerHorses.length > 0 ? playerHorses.reduce((best, horse) => {
+      const currentScore = horse.speed + horse.boosterPower;
+      const bestScore = best.speed + best.boosterPower;
+      return currentScore > bestScore ? horse : best;
+    }, playerHorses[0]) : { speed: 50, boosterPower: 50 };
+    
+    const reports = {};
+    newAiHorses.forEach(horse => {
+      const scoutNotes = [];
+      
+      // Compare to best player horse
+      if (horse.speed > bestPlayerHorse.speed + 10) {
+        scoutNotes.push('Much faster than your best');
+      } else if (horse.speed > bestPlayerHorse.speed) {
+        scoutNotes.push('Faster than your best');
+      } else if (Math.random() < 0.3) {
+        scoutNotes.push(`Speed: ${horse.speed}`);
+      }
+      
+      // Booster Power analysis
+      if (horse.boosterPower > bestPlayerHorse.boosterPower + 15) {
+        scoutNotes.push('Exceptional phase power');
+      } else if (horse.boosterPower > bestPlayerHorse.boosterPower) {
+        scoutNotes.push('Strong phase amplification');
+      } else if (Math.random() < 0.3) {
+        scoutNotes.push(`Booster: ${horse.boosterPower}`);
+      }
+      
+      // Distance fit
+      const distanceFit = Math.max(0, 100 - Math.abs(horse.distancePreference - (newDistance / 20)));
+      if (distanceFit > 80) {
+        scoutNotes.push('Perfect for distance');
+      } else if (distanceFit < 50) {
+        scoutNotes.push('Poor distance fit');
+      }
+      
+      // Special traits
+      const dangerousTraits = horse.traits.filter(t => 
+        ['sprinter', 'closer', 'earlySpeed'].includes(t)
+      );
+      if (dangerousTraits.length > 0 && Math.random() < 0.5) {
+        scoutNotes.push(`Strong ${TRAIT_DEFINITIONS[dangerousTraits[0]].name}`);
+      }
+      
+      reports[horse.id] = scoutNotes;
+    });
+    
+    setScoutReports(reports);
+  }, [generateHorse, raceNumber, playerHorses]);
+
+  // Calculate horse performance
+  const calculatePerformance = useCallback((horse, boost = null) => {
+    const distanceFactor = 1 - Math.abs(horse.distancePreference - (raceDistance / 20)) / 100;
+    const fatigueEffect = Math.max(0.5, 1 - (horse.fatigue / 100));
+    
+    let boostEffect = 1;
+    if (boost) {
+      switch (boost.type) {
+        case 'energy': boostEffect = 1.3; break;
+        case 'focus': boostEffect = 1.2; break;
+        case 'luck': boostEffect = 1.1 + (Math.random() * 0.3); break;
+        default: boostEffect = 1;
+      }
+    }
+    
+    return (horse.speed / 100) * Math.max(0.3, distanceFactor) * fatigueEffect * boostEffect;
+  }, [raceDistance]);
+
+  // Race simulation with optimized performance
+  const simulateRace = useCallback(() => {
+    const allHorses = [selectedHorse, ...aiHorses];
+    
+    const raceData = allHorses.map(horse => ({
+      ...horse,
+      basePerformance: calculatePerformance(horse, horse.id === selectedHorse.id ? selectedBoost : null),
+      progress: 0,
+      momentum: 0.5 + Math.random() * 0.3,
+      energy: 80 + Math.random() * 40,
+      intervalsSinceEvent: 0,
+      eventCount: 0,
+      targetEvents: 3 + horse.traits.length,
+      activePhase: null,
+      phaseEndTime: null,
+      finishTime: null,
+      hasFinished: false,
+      currentPhase: null
+    }));
+
+    let raceTime = 0;
+    const finishedHorses = [];
+
+    // Race simulation with optimized performance
+    const updateRace = () => {
+      raceTime++;
+      const raceProgress = raceTime / GAME_CONSTANTS.MAX_RACE_TIME;
+      
+      raceData.forEach(horse => {
+        if (horse.hasFinished) return;
+        
+        if (horse.progress >= 100 && !horse.hasFinished) {
+          horse.hasFinished = true;
+          horse.finishTime = raceTime;
+          finishedHorses.push(horse);
+          return;
+        }
+        
+        horse.intervalsSinceEvent++;
+        
+        let phaseChance = 0.02;
+        horse.traits.forEach(trait => {
+          const traitDef = TRAIT_DEFINITIONS[trait];
+          phaseChance += traitDef.phaseChance / 50;
+        });
+        
+        const canTriggerPhase = horse.eventCount < horse.targetEvents && !horse.activePhase;
+        
+        if (canTriggerPhase && Math.random() < phaseChance) {
+          horse.intervalsSinceEvent = 0;
+          horse.eventCount++;
+          
+          const availablePhases = [];
+          horse.traits.forEach(trait => {
+            const traitDef = TRAIT_DEFINITIONS[trait];
+            traitDef.phases.forEach(phase => {
+              if (raceProgress < 0.3 && ['earlyBurst', 'quickStart'].includes(phase)) {
+                availablePhases.push({ phase, trait, weight: 2 });
+              } else if (raceProgress < 0.7 && ['midRaceSurge', 'steadyPush', 'grind'].includes(phase)) {
+                availablePhases.push({ phase, trait, weight: 1.5 });
+              } else if (raceProgress >= 0.7 && ['finalKick', 'desperateCharge', 'sprint'].includes(phase)) {
+                availablePhases.push({ phase, trait, weight: 3 });
+              }
+            });
+          });
+          
+          if (Math.random() < 0.2) {
+            availablePhases.push({ phase: 'struggle', trait: null, weight: 1 });
+          }
+          
+          if (availablePhases.length > 0) {
+            const totalWeight = availablePhases.reduce((sum, p) => sum + p.weight, 0);
+            let random = Math.random() * totalWeight;
+            let selectedPhase = availablePhases[0];
+            
+            for (const phaseOption of availablePhases) {
+              random -= phaseOption.weight;
+              if (random <= 0) {
+                selectedPhase = phaseOption;
+                break;
+              }
+            }
+            
+            const phaseDef = PHASE_DEFINITIONS[selectedPhase.phase];
+            const traitDef = selectedPhase.trait ? TRAIT_DEFINITIONS[selectedPhase.trait] : null;
+            const powerModifier = traitDef ? traitDef.powerModifier : 1;
+            
+            // Apply booster power amplification
+            const boosterAmplification = 1 + (horse.boosterPower / 100);
+            
+            horse.activePhase = {
+              type: phaseDef.type,
+              name: selectedPhase.phase,
+              flatBonus: phaseDef.baseBonus * powerModifier * boosterAmplification,
+              duration: Math.floor(phaseDef.baseDuration * powerModifier)
+            };
+            
+            horse.phaseEndTime = raceTime + horse.activePhase.duration;
+            horse.currentPhase = horse.activePhase;
+          }
+        }
+        
+        let phaseBonusIncrement = 0;
+        if (horse.activePhase && raceTime < horse.phaseEndTime) {
+          phaseBonusIncrement = horse.activePhase.flatBonus;
+          
+          const boosterAmplification = 1 + (horse.boosterPower / 200);
+          
+          if (horse.activePhase.type === 'surge') {
+            horse.momentum = Math.min(1.5, horse.momentum + (0.08 * boosterAmplification));
+          } else if (horse.activePhase.type === 'struggle') {
+            const resistanceEffect = 1 - (horse.boosterPower / 400);
+            horse.momentum = Math.max(0.4, horse.momentum - (0.05 * resistanceEffect));
+          }
+        } else if (horse.activePhase && raceTime >= horse.phaseEndTime) {
+          horse.activePhase = null;
+          horse.currentPhase = null;
+          horse.phaseEndTime = null;
+        }
+        
+        const momentumChange = (Math.random() - 0.5) * 0.06;
+        horse.momentum = Math.max(0.4, Math.min(1.6, horse.momentum + momentumChange));
+        
+        const fatigueEffect = Math.max(0.3, horse.energy / 100);
+        const baseIncrement = 1.5;
+        const performanceMultiplier = horse.basePerformance * 2;
+        
+        const coreIncrement = baseIncrement * performanceMultiplier * horse.momentum * fatigueEffect;
+        const totalIncrement = coreIncrement + phaseBonusIncrement;
+        
+        const variationReduction = horse.boosterPower / 200;
+        const baseVariation = (Math.random() - 0.5) * 0.4;
+        const variation = baseVariation * (1 - variationReduction);
+        
+        horse.progress += Math.max(0.3, totalIncrement + variation);
+        
+        const effortLevel = horse.momentum + Math.abs(phaseBonusIncrement * 0.2);
+        horse.energy = Math.max(10, horse.energy - (0.8 + effortLevel * 0.3));
+      });
+
+      const newPositions = {};
+      raceData.forEach(horse => {
+        newPositions[horse.id] = {
+          position: Math.min(100, horse.progress),
+          phaseInfo: horse.currentPhase ? {
+            type: horse.currentPhase.type,
+            name: horse.currentPhase.name
+          } : null
+        };
+      });
+      setRacePositions(newPositions);
+
+      const thirdPlaceFinished = finishedHorses.length >= 3;
+      if (raceData.every(h => h.hasFinished) || (thirdPlaceFinished && raceTime > 35)) {
+        if (raceIntervalRef.current) {
+          clearInterval(raceIntervalRef.current);
+          raceIntervalRef.current = null;
+        }
+        finishRace(raceData);
+      }
+    };
+
+    raceIntervalRef.current = setInterval(updateRace, GAME_CONSTANTS.RACE_INTERVAL_MS);
+  }, [selectedHorse, aiHorses, selectedBoost, calculatePerformance]);
+
+  // Start race
+  const startRace = useCallback(() => {
+    if (!selectedHorse || !selectedEntryFee || selectedEntryFee.amount > wallet) return;
+    
+    setWallet(prev => prev - selectedEntryFee.amount);
+    setGamePhase(GAME_PHASES.RACING);
+    setIsRacing(true);
+    
+    setPlayerHorses(prev => prev.map(horse => 
+      horse.id === selectedHorse.id 
+        ? { ...horse, fatigue: Math.min(100, horse.fatigue + GAME_CONSTANTS.FATIGUE_PER_RACE) }
+        : horse
+    ));
+    
+    simulateRace();
+  }, [selectedHorse, selectedEntryFee, wallet, simulateRace]);
+
+  // Finish race
+  const finishRace = useCallback((raceData) => {
+    const sortedResults = [...raceData].sort((a, b) => {
+      if (a.finishTime && b.finishTime) return a.finishTime - b.finishTime;
+      if (a.finishTime && !b.finishTime) return -1;
+      if (!a.finishTime && b.finishTime) return 1;
+      return b.progress - a.progress;
+    });
+    
+    setRaceResults(sortedResults);
+    
+    const playerPosition = sortedResults.findIndex(horse => horse.id === selectedHorse.id);
+    const prizePool = calculatePrizePool(selectedEntryFee);
+    const prizes = [prizePool.first, prizePool.second, prizePool.third];
+    
+    let winnings = 0;
+    if (playerPosition < 3) {
+      winnings = prizes[playerPosition];
+      setWallet(prev => prev + winnings);
+    }
+    
+    setLastRaceResult({ position: playerPosition, winnings });
+    setSelectedBoost(null);
+    setIsRacing(false);
+    setGamePhase(GAME_PHASES.POST_RACE);
+  }, [selectedHorse, selectedEntryFee, calculatePrizePool]);
+
+  // Generate upgrade options with enhanced comeback mechanic
+  const generateUpgradeOptions = useCallback(() => {
+    const minEntryFee = Math.floor(10 * Math.pow(GAME_CONSTANTS.MIN_ENTRY_MULTIPLIER, raceNumber - 1));
+    const affordabilityRatio = wallet / Math.max(1, minEntryFee);
+    
+    let comebackBonus = 1;
+    if (affordabilityRatio < 2) {
+      comebackBonus = 3;
+    } else if (affordabilityRatio < 5) {
+      comebackBonus = 2;
+    } else if (affordabilityRatio < 10) {
+      comebackBonus = 1.5;
+    }
+    
+    const allOptions = [
+      { 
+        type: 'speed', 
+        name: 'Speed Training', 
+        desc: `+${Math.floor(8 * comebackBonus)} Speed to selected horse`, 
+        cost: 0,
+        requiresHorsePick: true,
+        value: Math.floor(8 * comebackBonus)
+      },
+      { 
+        type: 'boosterPower', 
+        name: 'Amplification Training', 
+        desc: `+${Math.floor(12 * comebackBonus)} Booster Power to selected horse`, 
+        cost: 0,
+        requiresHorsePick: true,
+        value: Math.floor(12 * comebackBonus)
+      },
+      { 
+        type: 'recovery', 
+        name: 'Rest Day', 
+        desc: 'Remove all fatigue from selected horse', 
+        cost: 0,
+        requiresHorsePick: true
+      },
+      { 
+        type: 'veteran', 
+        name: 'Veteran Bonus', 
+        desc: `+${Math.floor(3 * comebackBonus)} to all stats for selected horse`, 
+        cost: 0,
+        requiresHorsePick: true,
+        value: Math.floor(3 * comebackBonus)
+      },
+      { 
+        type: 'stableSpeed', 
+        name: 'Better Training', 
+        desc: `+${Math.floor(2 * comebackBonus)} Speed to all horses`, 
+        cost: 0,
+        value: Math.floor(2 * comebackBonus)
+      },
+      { 
+        type: 'stableBooster', 
+        name: 'Amplification Program', 
+        desc: `+${Math.floor(4 * comebackBonus)} Booster Power to all horses`, 
+        cost: 0,
+        value: Math.floor(4 * comebackBonus)
+      },
+      { 
+        type: 'newTrait', 
+        name: 'Trait Training', 
+        desc: 'Add a random trait to selected horse', 
+        cost: 0,
+        requiresHorsePick: true
+      },
+      { 
+        type: 'newHorse', 
+        name: 'Buy New Horse', 
+        desc: 'Add a new horse to your stable', 
+        cost: 0
+      }
+    ];
+    
+    if (playerHorses.length >= 2) {
+      allOptions.push({
+        type: 'breed',
+        name: 'Breed Horses',
+        desc: 'Combine two horses to create offspring',
+        cost: 0
+      });
+    }
+    
+    if (comebackBonus >= 3) {
+      allOptions.push({
+        type: 'miracleHorse',
+        name: 'Miracle Training',
+        desc: '+15 Speed and +20 Booster Power to selected horse',
+        cost: 0,
+        requiresHorsePick: true,
+        value: 15
+      });
+    }
+    
+    if (comebackBonus > 1) {
+      const goodOptions = allOptions.filter(opt => 
+        ['speed', 'veteran', 'miracleHorse', 'newTrait', 'boosterPower'].includes(opt.type) && opt.cost === 0
+      );
+      const otherOptions = allOptions.filter(opt => !goodOptions.includes(opt));
+      
+      const selected = [
+        randomChoice(goodOptions),
+        ...shuffleArray(otherOptions).slice(0, 2)
+      ];
+      
+      return selected.filter((opt, index, self) => 
+        index === self.findIndex(o => o.type === opt.type)
+      ).slice(0, 3);
+    }
+    
+    return shuffleArray(allOptions).slice(0, 3);
+  }, [raceNumber, wallet, playerHorses.length]);
+
+  // Apply upgrade after horse selection
+  const applyUpgradeToHorse = useCallback((horse) => {
+    const upgrade = pendingUpgrade;
+    if (!upgrade) return;
+    
+    switch (upgrade.type) {
+      case 'speed':
+        setPlayerHorses(prev => prev.map(h => 
+          h.id === horse.id 
+            ? { ...h, speed: Math.min(100, h.speed + upgrade.value) }
+            : h
+        ));
+        break;
+      case 'boosterPower':
+        setPlayerHorses(prev => prev.map(h => 
+          h.id === horse.id 
+            ? { ...h, boosterPower: Math.min(100, h.boosterPower + upgrade.value) }
+            : h
+        ));
+        break;
+      case 'recovery':
+        setPlayerHorses(prev => prev.map(h => 
+          h.id === horse.id 
+            ? { ...h, fatigue: 0 }
+            : h
+        ));
+        break;
+      case 'veteran':
+        setPlayerHorses(prev => prev.map(h => 
+          h.id === horse.id 
+            ? { 
+                ...h, 
+                speed: Math.min(100, h.speed + upgrade.value),
+                boosterPower: Math.min(100, h.boosterPower + upgrade.value)
+              }
+            : h
+        ));
+        break;
+      case 'miracleHorse':
+        setPlayerHorses(prev => prev.map(h => 
+          h.id === horse.id 
+            ? { 
+                ...h, 
+                speed: Math.min(100, h.speed + 15),
+                boosterPower: Math.min(100, h.boosterPower + 20)
+              }
+            : h
+        ));
+        break;
+      case 'newTrait':
+        setPlayerHorses(prev => prev.map(h => {
+          if (h.id === horse.id && h.traits.length < 3) {
+            const availableTraits = Object.keys(TRAIT_DEFINITIONS).filter(t => !h.traits.includes(t));
+            if (availableTraits.length > 0) {
+              return { ...h, traits: [...h.traits, randomChoice(availableTraits)] };
+            }
+          }
+          return h;
+        }));
+        break;
+    }
+    
+    setPendingUpgrade(null);
+    proceedToNextRace();
+  }, [pendingUpgrade]);
+
+  // Apply upgrade
+  const applyUpgrade = useCallback((upgrade) => {
+    if (upgrade.requiresHorsePick) {
+      setPendingUpgrade(upgrade);
+      setGamePhase(GAME_PHASES.HORSE_PICKER);
+      return;
+    }
+    
+    switch (upgrade.type) {
+      case 'stableSpeed':
+        setPlayerHorses(prev => prev.map(horse => 
+          ({ ...horse, speed: Math.min(100, horse.speed + upgrade.value) })
+        ));
+        break;
+      case 'stableBooster':
+        setPlayerHorses(prev => prev.map(horse => 
+          ({ ...horse, boosterPower: Math.min(100, horse.boosterPower + upgrade.value) })
+        ));
+        break;
+      case 'newHorse':
+        const newHorse = generateHorse(true, raceNumber);
+        setPlayerHorses(prev => [...prev, newHorse]);
+        break;
+      case 'breed':
+        setGamePhase(GAME_PHASES.BREEDING);
+        return;
+    }
+    
+    proceedToNextRace();
+  }, [generateHorse, raceNumber]);
+
+  // Handle breeding
+  const handleBreeding = useCallback((parent1, parent2) => {
+    const offspring = breedHorses(parent1, parent2);
+    setPlayerHorses(prev => [...prev, offspring]);
+    proceedToNextRace();
+  }, [breedHorses]);
+
+  // Proceed to next race
+  const proceedToNextRace = useCallback(() => {
+    setRaceNumber(prev => prev + 1);
+    generateAIHorses();
+    setGamePhase(GAME_PHASES.HORSE_SELECTION);
+    setRaceResults([]);
+    setRacePositions({});
+    setSelectedEntryFee(null);
+  }, [generateAIHorses]);
+
+  // Initialize game with 3 horses
+  useEffect(() => {
+    const startingHorses = [
+      generateHorse(true, 1, 40),
+      generateHorse(true, 1, 60),
+      generateHorse(true, 1, 80),
+    ];
+    
+    setPlayerHorses(startingHorses);
+    setSelectedHorse(startingHorses[0]);
+    
+    // Generate AI horses for first race
+    const newDistance = randomChoice(RACE_DISTANCES);
+    setRaceDistance(newDistance);
+    
+    const newAiHorses = Array.from({ length: GAME_CONSTANTS.AI_HORSES_COUNT }, () => 
+      generateHorse(false, 1)
+    );
+    setAiHorses(newAiHorses);
+    
+    // Generate initial scout reports
+    const bestPlayerHorse = startingHorses.reduce((best, horse) => {
+      const currentScore = horse.speed + horse.boosterPower;
+      const bestScore = best.speed + best.boosterPower;
+      return currentScore > bestScore ? horse : best;
+    }, startingHorses[0]);
+    
+    const reports = {};
+    newAiHorses.forEach(horse => {
+      const scoutNotes = [];
+      
+      if (horse.speed > bestPlayerHorse.speed + 10) {
+        scoutNotes.push('Much faster than your best');
+      } else if (horse.speed > bestPlayerHorse.speed) {
+        scoutNotes.push('Faster than your best');
+      } else if (Math.random() < 0.3) {
+        scoutNotes.push(`Speed: ${horse.speed}`);
+      }
+      
+      const distanceFit = Math.max(0, 100 - Math.abs(horse.distancePreference - (newDistance / 20)));
+      if (distanceFit > 80) {
+        scoutNotes.push('Perfect for distance');
+      } else if (distanceFit < 50) {
+        scoutNotes.push('Poor distance fit');
+      }
+      
+      reports[horse.id] = scoutNotes;
+    });
+    
+    setScoutReports(reports);
+  }, [generateHorse]);
+
+  // Generate upgrade options when post-race
+  useEffect(() => {
+    if (gamePhase === GAME_PHASES.POST_RACE) {
+      setUpgradeOptions(generateUpgradeOptions());
+    }
+  }, [gamePhase, generateUpgradeOptions]);
+
+  // Cleanup interval on unmount or phase change
+  useEffect(() => {
+    return () => {
+      if (raceIntervalRef.current) {
+        clearInterval(raceIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Game state checks
+  const hasWon = wallet >= GAME_CONSTANTS.WIN_CONDITION;
+  const hasLost = gamePhase === GAME_PHASES.POST_RACE && 
+                  wallet === 0 && 
+                  lastRaceResult && 
+                  lastRaceResult.position >= 3;
+
+  // Restart game
+  const restartGame = useCallback(() => {
+    if (raceIntervalRef.current) {
+      clearInterval(raceIntervalRef.current);
+      raceIntervalRef.current = null;
+    }
+    
+    setWallet(GAME_CONSTANTS.INITIAL_WALLET);
+    setRaceNumber(1);
+    setGamePhase(GAME_PHASES.HORSE_SELECTION);
+    setSelectedEntryFee(null);
+    setSelectedBoost(null);
+    setPendingUpgrade(null);
+    setLastRaceResult(null);
+    setRaceResults([]);
+    setRacePositions({});
+    setScoutReports({});
+    
+    const startingHorses = [
+      generateHorse(true, 1, 40),
+      generateHorse(true, 1, 60),
+      generateHorse(true, 1, 80),
+    ];
+    setPlayerHorses(startingHorses);
+    setSelectedHorse(startingHorses[0]);
+    
+    // Generate new AI horses
+    const newDistance = randomChoice(RACE_DISTANCES);
+    setRaceDistance(newDistance);
+    
+    const newAiHorses = Array.from({ length: GAME_CONSTANTS.AI_HORSES_COUNT }, () => 
+      generateHorse(false, 1)
+    );
+    setAiHorses(newAiHorses);
+  }, [generateHorse]);
+
+  const prizePool = useMemo(() => calculatePrizePool(selectedEntryFee), [calculatePrizePool, selectedEntryFee]);
+
+  // Fixed bottom action bar
+  const ActionBar = () => {
+    if (gamePhase === GAME_PHASES.HORSE_SELECTION && selectedHorse && selectedEntryFee) {
+      return (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 p-4 shadow-lg z-20">
+          <div className="max-w-6xl mx-auto flex justify-between items-center">
+            <div className="text-lg">
+              <span className="font-bold">Selected:</span> {selectedHorse.name} | 
+              <span className="font-bold ml-2">Entry:</span> ${selectedEntryFee.amount}
+            </div>
+            <button
+              onClick={startRace}
+              className="bg-green-500 text-white px-8 py-3 rounded-lg hover:bg-green-600 transition-colors text-lg font-bold"
+            >
+              Start Race 🏁
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-green-800 to-green-600 p-4">
+      <div className="max-w-6xl mx-auto">
+        <Header 
+          wallet={wallet} 
+          raceNumber={raceNumber} 
+          horsesCount={playerHorses.length} 
+          raceDistance={raceDistance} 
+        />
+
+        {(hasWon || hasLost) && (
+          <GameOverModal hasWon={hasWon} onRestart={restartGame} />
+        )}
+
+        {/* Horse Selection Phase */}
+        {gamePhase === GAME_PHASES.HORSE_SELECTION && (
+          <div className="pb-32">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
+              <h2 className="text-2xl font-bold mb-4">Select Your Horse for Race {raceNumber}</h2>
+              
+              {/* Entry Fee Selection */}
+              <EntryFeeSelector
+                fees={entryFees}
+                selectedFee={selectedEntryFee}
+                onSelectFee={setSelectedEntryFee}
+                wallet={wallet}
+              />
+              
+              {entryFees.length === 0 && (
+                <div className="text-red-600 font-bold text-center mb-4">
+                  ⚠️ Not enough money for entry fees! You need at least ${Math.floor(10 * Math.pow(GAME_CONSTANTS.MIN_ENTRY_MULTIPLIER, raceNumber - 1))}
+                </div>
+              )}
+              
+              {/* Player Horses */}
+              <div className="mb-6">
+                <h3 className="text-lg font-bold mb-3 text-blue-600">Your Stable</h3>
+                <div className="space-y-2">
+                  {playerHorses.map(horse => (
+                    <HorseCard
+                      key={horse.id}
+                      horse={horse}
+                      isSelected={selectedHorse?.id === horse.id}
+                      onSelect={() => setSelectedHorse(horse)}
+                      raceDistance={raceDistance}
+                      prizePool={prizePool}
+                      entryFee={selectedEntryFee}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Competition Preview with Scout Report */}
+              <ScoutReport aiHorses={aiHorses} scoutReports={scoutReports} />
+            </div>
+          </div>
+        )}
+
+        {/* Racing Phase */}
+        {gamePhase === GAME_PHASES.RACING && (
+          <RaceTrack
+            horses={[selectedHorse, ...aiHorses]}
+            racePositions={racePositions}
+            selectedHorse={selectedHorse}
+            entryFee={selectedEntryFee}
+          />
+        )}
+
+        {/* Horse Picker for Upgrades */}
+        {gamePhase === GAME_PHASES.HORSE_PICKER && (
+          <HorsePicker
+            horses={playerHorses}
+            onSelect={applyUpgradeToHorse}
+            title={`Select horse for: ${pendingUpgrade?.name}`}
+          />
+        )}
+
+        {/* Breeding Interface */}
+        {gamePhase === GAME_PHASES.BREEDING && (
+          <BreedingInterface
+            horses={playerHorses}
+            onBreed={handleBreeding}
+            onCancel={proceedToNextRace}
+            wallet={wallet}
+          />
+        )}
+
+        {/* Post Race Results */}
+        {gamePhase === GAME_PHASES.POST_RACE && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg p-6 shadow-lg">
+              <h2 className="text-2xl font-bold mb-4">Race {raceNumber} Results</h2>
+              <div className="space-y-2">
+                {raceResults.map((horse, index) => (
+                  <div 
+                    key={horse.id} 
+                    className={`flex items-center justify-between p-3 rounded ${
+                      index === 0 ? 'bg-yellow-100' : 
+                      index === 1 ? 'bg-gray-100' : 
+                      index === 2 ? 'bg-orange-100' : 'bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="font-bold text-lg">#{index + 1}</span>
+                      <span className="font-medium">{horse.name}</span>
+                      {horse.isPlayer && (
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
+                          Your Horse
+                        </span>
+                      )}
+                      <div className="flex gap-1">
+                        {horse.traits.map(trait => (
+                          <span key={trait} className="text-xs">
+                            {TRAIT_DEFINITIONS[trait].icon}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {index === 0 && <span className="text-2xl">🏆</span>}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Results Summary */}
+              <div className="mt-4 p-4 border-t">
+                {(() => {
+                  const playerPosition = raceResults.findIndex(horse => horse.id === selectedHorse.id);
+                  const prizes = [prizePool.first, prizePool.second, prizePool.third];
+                  
+                  if (playerPosition < 3) {
+                    const position = ['1st', '2nd', '3rd'][playerPosition];
+                    const winnings = prizes[playerPosition];
+                    return (
+                      <div className="text-green-600 font-bold text-lg">
+                        🎉 {position} Place! {selectedHorse.name} won ${winnings}!
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="text-red-600 font-bold text-lg">
+                        ❌ {selectedHorse.name} finished {playerPosition + 1}th. No prize money.
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
+            </div>
+
+            {/* Upgrade Options */}
+            <div className="bg-white rounded-lg p-6 shadow-lg">
+              <h2 className="text-2xl font-bold mb-4">Choose an Upgrade</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {upgradeOptions.map((upgrade, index) => (
+                  <div
+                    key={index}
+                    onClick={() => applyUpgrade(upgrade)}
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                      upgrade.cost > wallet
+                        ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
+                        : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
+                    }`}
+                  >
+                    <h3 className="font-bold text-lg mb-2">{upgrade.name}</h3>
+                    <p className="text-sm text-gray-600 mb-3">{upgrade.desc}</p>
+                    {upgrade.cost > 0 ? (
+                      <div className={`text-lg font-bold ${upgrade.cost > wallet ? 'text-red-600' : 'text-green-600'}`}>
+                        Cost: ${upgrade.cost}
+                      </div>
+                    ) : (
+                      <div className="text-lg font-bold text-green-600">FREE</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Comeback mechanic indicator */}
+              {(() => {
+                const minEntryFee = Math.floor(10 * Math.pow(GAME_CONSTANTS.MIN_ENTRY_MULTIPLIER, raceNumber - 1));
+                const affordabilityRatio = wallet / Math.max(1, minEntryFee);
+                
+                if (affordabilityRatio < 5) {
+                  return (
+                    <div className="mt-4 p-3 bg-yellow-50 rounded-lg text-center">
+                      <span className="text-sm text-yellow-800">
+                        💪 <strong>Comeback Bonus Active!</strong> Enhanced upgrade values due to low funds.
+                      </span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+        )}
+
+        {/* Action Bar */}
+        <ActionBar />
+      </div>
+    </div>
+  );
+};
+
+export default StableRacingGame;
