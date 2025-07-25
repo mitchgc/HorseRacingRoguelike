@@ -8,7 +8,8 @@
       "Bash(cd:*)",
       "Bash(cd:*)",
       "Bash(chmod:*)",
-      "Bash(open http://localhost:8000)"
+      "Bash(open http://localhost:8000)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

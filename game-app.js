@@ -122,7 +122,8 @@ function EntryFeeSelector({ fees, selectedFee, onSelectFee, wallet, raceNumber }
           Pay the entry fee to race. Finish 1st, 2nd, or 3rd to win prize money!
         </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
+      {/* Mobile - Stack vertically with larger touch targets */}
+      <div className="flex flex-col space-y-3 sm:hidden">
         {fees.map((fee, index) => {
           const prizePool = calculatePrizePool(fee);
           return (
@@ -130,7 +131,52 @@ function EntryFeeSelector({ fees, selectedFee, onSelectFee, wallet, raceNumber }
               key={index}
               onClick={() => onSelectFee(fee)}
               disabled={fee.amount > wallet}
-              className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${
+              className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${
+                selectedFee?.amount === fee.amount
+                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 scale-[1.02]'
+                  : fee.amount > wallet
+                  ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
+                  : 'border-gray-300 hover:border-blue-400 hover:bg-blue-25 active:scale-[0.98]'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <div className="font-bold text-xl text-gray-800">
+                    ${fee.amount}
+                  </div>
+                  <div className="text-sm text-gray-600">Entry Fee</div>
+                </div>
+                
+                <div className="text-right space-y-1 text-sm">
+                  <div className="flex items-center justify-end space-x-2">
+                    <span className="text-yellow-500">🥇</span>
+                    <span className="font-bold text-green-600">${prizePool.first}</span>
+                  </div>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span className="text-gray-400">🥈</span>
+                    <span className="font-semibold text-gray-600">${prizePool.second}</span>
+                  </div>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span className="text-orange-400">🥉</span>
+                    <span className="font-semibold text-orange-600">${prizePool.third}</span>
+                  </div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      
+      {/* Desktop - Original grid */}
+      <div className="hidden sm:grid grid-cols-3 gap-4">
+        {fees.map((fee, index) => {
+          const prizePool = calculatePrizePool(fee);
+          return (
+            <button
+              key={index}
+              onClick={() => onSelectFee(fee)}
+              disabled={fee.amount > wallet}
+              className={`p-4 rounded-lg border-2 transition-all ${
                 selectedFee?.amount === fee.amount
                   ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
                   : fee.amount > wallet
@@ -138,7 +184,7 @@ function EntryFeeSelector({ fees, selectedFee, onSelectFee, wallet, raceNumber }
                   : 'border-gray-300 hover:border-blue-400 hover:bg-blue-25'
               }`}
             >
-              <div className="font-bold text-base sm:text-lg text-gray-800">
+              <div className="font-bold text-lg text-gray-800">
                 ${fee.amount}
               </div>
               <div className="space-y-1 text-xs">
@@ -395,7 +441,7 @@ function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExperti
   return (
     <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg">
       <h2 className="text-xl sm:text-2xl font-bold mb-4">{title}</h2>
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-4">
         <div className="space-y-2">
           {[...horses].sort((a, b) => a.distancePreference - b.distancePreference).map(horse => {
             const distanceFit = calculateDistanceFit(horse, raceDistance);
@@ -405,9 +451,54 @@ function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExperti
               <div 
                 key={horse.id}
                 onClick={() => onSelect(horse)}
-                className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-500"
+                className="flex flex-col sm:flex-row p-3 sm:p-3 rounded-lg cursor-pointer transition-all bg-white hover:bg-blue-50 border-2 border-gray-200 hover:border-blue-500 active:border-blue-600 active:scale-[0.98]"
               >
-                <div className="grid grid-cols-4 gap-4 items-center w-full">
+                {/* Mobile Layout - Stacked */}
+                <div className="flex flex-col space-y-3 sm:hidden w-full">
+                  {/* Horse Header - Name, Icon, and Distance */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <HorseIcon color={horse.color} size="md" />
+                      <div className="flex flex-col">
+                        <span className="text-base font-bold text-blue-800">{horse.name}</span>
+                        {horse.fatigue > 0 && (
+                          <div className={`flex items-center space-x-1 text-xs ${horse.fatigue > 80 ? 'text-red-600' : horse.fatigue > 40 ? 'text-yellow-600' : 'text-orange-600'}`}>
+                            <span>😴</span>
+                            <span className="font-medium">Fatigue: {horse.fatigue}%</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`flex items-center space-x-1 rounded-full px-3 py-1 ${expertise.bgColor} ${expertise.color}`}>
+                      <span className="text-sm">{expertise.icon}</span>
+                      <span className="text-xs font-bold">{expertise.text}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Stats Row */}
+                  <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center space-x-4">
+                      <div className="text-sm">
+                        <span className="text-gray-600">Speed:</span>
+                        <span className="font-bold text-blue-700 ml-1">{horse.speed}</span>
+                      </div>
+                      <div className="text-sm">
+                        <span className="text-gray-600">Booster:</span>
+                        <span className="font-bold text-green-700 ml-1">{horse.boosterPower}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      {horse.traits.map(trait => (
+                        <span key={trait} className="text-base" title={TRAIT_DEFINITIONS[trait].name}>
+                          {TRAIT_DEFINITIONS[trait].icon}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Layout - Original Grid */}
+                <div className="hidden sm:grid grid-cols-4 gap-4 items-center w-full">
                   {/* Horse Name and Icon */}
                   <div className="flex items-center space-x-2 min-w-0">
                     <HorseIcon color={horse.color} size="sm" />
@@ -1459,7 +1550,39 @@ function StableRacingGame() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Mobile - Stack vertically with larger cards */}
+              <div className="flex flex-col space-y-4 sm:hidden">
+                {upgradeOptions.map((upgrade, index) => (
+                  <div
+                    key={index}
+                    onClick={() => upgrade.cost <= wallet && applyUpgrade(upgrade)}
+                    className={`p-5 border-2 rounded-lg transition-all min-h-[100px] ${
+                      upgrade.cost > wallet
+                        ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
+                        : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50 cursor-pointer active:scale-[0.98]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-lg mb-2">{upgrade.name}</h3>
+                        <p className="text-sm text-gray-600">{upgrade.desc}</p>
+                      </div>
+                      <div className="ml-4">
+                        {upgrade.cost > 0 ? (
+                          <div className={`text-lg font-bold whitespace-nowrap ${upgrade.cost > wallet ? 'text-red-600' : 'text-green-600'}`}>
+                            ${upgrade.cost}
+                          </div>
+                        ) : (
+                          <div className="text-lg font-bold text-green-600">FREE</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Desktop - Original grid */}
+              <div className="hidden sm:grid grid-cols-1 md:grid-cols-3 gap-4">
                 {upgradeOptions.map((upgrade, index) => (
                   <div
                     key={index}
