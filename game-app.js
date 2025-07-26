@@ -106,6 +106,373 @@ function GameOverModal({ hasWon, onRestart }) {
   );
 }
 
+// Game Guide Component
+function GameGuide({ onStartGame }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-green-800 to-green-600 flex items-center justify-center p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 sm:p-10">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl sm:text-5xl font-bold text-green-700 mb-4">
+            🏇 Stable Manager 🏇
+          </h1>
+          <p className="text-lg text-gray-600">Build the ultimate horse racing stable!</p>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* How to Play */}
+          <div className="bg-blue-50 rounded-lg p-6">
+            <h2 className="text-2xl font-bold text-blue-700 mb-4">📖 How to Play</h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-start">
+                <span className="text-blue-600 mr-2">1.</span>
+                <div>
+                  <strong>Select Your Horse:</strong> Choose from your stable based on race distance and condition
+                </div>
+              </div>
+              <div className="flex items-start">
+                <span className="text-blue-600 mr-2">2.</span>
+                <div>
+                  <strong>Pick Entry Fee:</strong> Higher fees mean bigger prizes - but greater risk!
+                </div>
+              </div>
+              <div className="flex items-start">
+                <span className="text-blue-600 mr-2">3.</span>
+                <div>
+                  <strong>Watch the Race:</strong> Your horse will compete based on stats, traits, and luck
+                </div>
+              </div>
+              <div className="flex items-start">
+                <span className="text-blue-600 mr-2">4.</span>
+                <div>
+                  <strong>Win Prizes:</strong> Finish 1st, 2nd, or 3rd to earn money
+                </div>
+              </div>
+              <div className="flex items-start">
+                <span className="text-blue-600 mr-2">5.</span>
+                <div>
+                  <strong>Upgrade & Breed:</strong> Improve your stable between races
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Key Concepts */}
+          <div className="bg-green-50 rounded-lg p-6">
+            <h2 className="text-2xl font-bold text-green-700 mb-4">🔑 Key Concepts</h2>
+            <div className="space-y-3 text-sm">
+              <div>
+                <strong className="text-green-700">🎯 Goal:</strong> Build your wealth to $1,000 to win!
+              </div>
+              <div>
+                <strong className="text-green-700">📏 Distance Match:</strong> Horses perform best at their preferred distance
+              </div>
+              <div>
+                <strong className="text-green-700">⚡ Traits:</strong> Special abilities that affect race performance
+              </div>
+              <div>
+                <strong className="text-green-700">😴 Fatigue:</strong> Racing tires horses - rest them or they'll underperform
+              </div>
+              <div>
+                <strong className="text-green-700">🔥 Surge Events:</strong> Random speed boosts during races
+              </div>
+              <div>
+                <strong className="text-green-700">🐴 Breeding:</strong> Combine horses to create better offspring
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Strategy Tips */}
+        <div className="bg-yellow-50 rounded-lg p-6 mb-8">
+          <h2 className="text-2xl font-bold text-yellow-700 mb-4">💡 Strategy Tips</h2>
+          <div className="grid sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-yellow-600">📊</span> <strong>Match horses to race distances</strong> for best results
+            </div>
+            <div>
+              <span className="text-yellow-600">💰</span> <strong>Balance risk vs reward</strong> with entry fees
+            </div>
+            <div>
+              <span className="text-yellow-600">🧬</span> <strong>Breed horses with complementary traits</strong>
+            </div>
+            <div>
+              <span className="text-yellow-600">🕵️</span> <strong>Study the competition</strong> before racing
+            </div>
+          </div>
+        </div>
+        
+        {/* Start Button */}
+        <button
+          onClick={onStartGame}
+          className="w-full bg-green-500 text-white text-xl font-bold py-4 rounded-lg hover:bg-green-600 transition-all transform hover:scale-105 shadow-lg"
+        >
+          🏁 Start Playing! 🏁
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Tab-based Horse Selection Component  
+function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelectedHorse, raceDistance, getDistanceExpertise }) {
+  const [activeTab, setActiveTab] = useState('stable');
+  
+  return (
+    <div className="bg-white rounded-lg shadow-lg pb-20"> {/* Add bottom padding for banner */}
+      {/* Tab Navigation */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('stable')}
+          className={`flex-1 py-4 px-6 text-center font-bold transition-colors ${
+            activeTab === 'stable'
+              ? 'bg-blue-500 text-white border-b-2 border-blue-500'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          🏇 Your Stable ({playerHorses.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('competition')}
+          className={`flex-1 py-4 px-6 text-center font-bold transition-colors ${
+            activeTab === 'competition'
+              ? 'bg-red-500 text-white border-b-2 border-red-500'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          🕵️ Competition ({aiHorses.length})
+        </button>
+      </div>
+      
+      {/* Tab Content */}
+      <div className="p-4">
+        {activeTab === 'stable' && (
+          <div>
+            <h3 className="text-lg font-bold mb-4 text-blue-600">Select Your Champion</h3>
+            <div className="space-y-3">
+              {[...playerHorses].sort((a, b) => {
+                // Sort by performance rating first, then by distance fit
+                const aPerf = a.speed + (a.boosterPower * 0.5);
+                const bPerf = b.speed + (b.boosterPower * 0.5);
+                if (Math.abs(aPerf - bPerf) > 5) return bPerf - aPerf;
+                
+                const { calculateDistanceFit } = window.HorseSystem;
+                const aFit = calculateDistanceFit(a, raceDistance);
+                const bFit = calculateDistanceFit(b, raceDistance);
+                return bFit - aFit;
+              }).map(horse => (
+                <HorseCard
+                  key={horse.id}
+                  horse={horse}
+                  isSelected={selectedHorse?.id === horse.id}
+                  onSelect={() => setSelectedHorse(horse)}
+                  raceDistance={raceDistance}
+                  getDistanceExpertise={getDistanceExpertise}
+                  isPlayerHorse={true}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {activeTab === 'competition' && (
+          <CompetitionIntel 
+            aiHorses={aiHorses}
+            playerHorses={playerHorses}
+            raceDistance={raceDistance}
+            getDistanceExpertise={getDistanceExpertise}
+            isInTab={true}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Expandable Competition Intel Component
+function CompetitionIntel({ aiHorses, playerHorses, raceDistance, getDistanceExpertise, isInTab = false }) {
+  const { TRAIT_DEFINITIONS } = window.GameConfig;
+  const [isExpanded, setIsExpanded] = useState(isInTab); // Auto-expand when in tab
+  
+  return (
+    <div className={isInTab ? '' : 'bg-white rounded-lg shadow-lg'}>
+      {/* Collapsible Header (only show when not in tab) */}
+      {!isInTab && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full p-4 text-left hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-red-600">
+              🕵️ Competition Intel {!isExpanded && `(${aiHorses.length} opponents)`}
+            </h3>
+            <span className={`text-2xl transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+              ⌄
+            </span>
+          </div>
+          {!isExpanded && (
+            <p className="text-sm text-gray-600 mt-1">
+              Tap to view detailed scouting reports on your competition
+            </p>
+          )}
+        </button>
+      )}
+      
+      {/* Content */}
+      {(isExpanded || isInTab) && (
+        <div className={isInTab ? '' : 'px-4 pb-4'}>
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center mb-2">
+              <span className="text-red-600 mr-2 text-lg">🎯</span>
+              <span className="font-bold text-red-800">Strategic Analysis</span>
+            </div>
+            <div className="text-red-700 text-sm">
+              Our scouts have analyzed the competition. Focus on horses marked as threats!
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            {[...aiHorses].sort((a, b) => {
+              // Sort by threat level to player
+              const bestPlayerSpeed = Math.max(...playerHorses.map(h => h.speed));
+              const aThreat = a.speed / bestPlayerSpeed;
+              const bThreat = b.speed / bestPlayerSpeed;
+              return bThreat - aThreat;
+            }).map(horse => {
+              // Calculate threat assessment
+              const bestPlayerSpeed = Math.max(...playerHorses.map(h => h.speed));
+              const threatRatio = horse.speed / bestPlayerSpeed;
+              
+              let threatAssessment;
+              if (threatRatio > 1.4) {
+                threatAssessment = { 
+                  level: 'MAJOR THREAT', 
+                  color: 'bg-red-500 text-white', 
+                  icon: '⚠️',
+                  advice: 'Avoid unless confident'
+                };
+              } else if (threatRatio > 1.2) {
+                threatAssessment = { 
+                  level: 'STRONG', 
+                  color: 'bg-orange-500 text-white', 
+                  icon: '⚡',
+                  advice: 'Tough competition'
+                };
+              } else if (threatRatio > 1.0) {
+                threatAssessment = { 
+                  level: 'COMPETITIVE', 
+                  color: 'bg-yellow-500 text-white', 
+                  icon: '💪',
+                  advice: 'Good matchup'
+                };
+              } else {
+                threatAssessment = { 
+                  level: 'BEATABLE', 
+                  color: 'bg-green-500 text-white', 
+                  icon: '👍',
+                  advice: 'Good target'
+                };
+              }
+              
+              // Intelligence gathering (some info may be unknown)
+              const speedVisible = (horse.id * 1234) % 10 >= 4;
+              const traitsVisible = (horse.id * 5678) % 10 >= 3;
+              const distanceVisible = (horse.id * 9876) % 10 >= 5;
+              
+              return (
+                <div key={horse.id} className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow">
+                  {/* Header with Threat Assessment */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <HorseIcon color={horse.color} size="md" />
+                      <div>
+                        <div className="font-bold text-lg text-gray-900">{horse.name}</div>
+                        <div className="text-sm text-gray-600">Competitor #{horse.id}</div>
+                      </div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full font-bold text-sm ${threatAssessment.color}`}>
+                      <span className="mr-1">{threatAssessment.icon}</span>
+                      {threatAssessment.level}
+                    </div>
+                  </div>
+                  
+                  {/* Strategic Advice */}
+                  <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                    <div className="text-sm font-medium text-gray-700">
+                      📊 Analysis: {threatAssessment.advice}
+                    </div>
+                  </div>
+                  
+                  {/* Intelligence Grid */}
+                  <div className="grid grid-cols-3 gap-3">
+                    {/* Speed Intel */}
+                    <div className="text-center p-2 bg-blue-50 rounded-lg">
+                      <div className="text-xs font-semibold text-blue-600 mb-1">SPEED</div>
+                      <div className="font-bold text-lg text-blue-700">
+                        {speedVisible ? Math.floor(horse.speed * 0.9 + Math.random() * 10) : '???'}
+                      </div>
+                      <div className="text-xs text-blue-500">
+                        {speedVisible ? 'Estimated' : 'Unknown'}
+                      </div>
+                    </div>
+                    
+                    {/* Distance Intel */}
+                    <div className="text-center p-2 bg-green-50 rounded-lg">
+                      <div className="text-xs font-semibold text-green-600 mb-1">DISTANCE</div>
+                      {distanceVisible ? (() => {
+                        const { calculateDistanceFit } = window.HorseSystem;
+                        const fit = calculateDistanceFit(horse, raceDistance);
+                        const expertise = getDistanceExpertise(fit);
+                        return (
+                          <div>
+                            <div className="text-lg">{expertise.icon}</div>
+                            <div className="text-xs text-green-600 font-medium">{expertise.text}</div>
+                          </div>
+                        );
+                      })() : (
+                        <div>
+                          <div className="text-lg text-gray-400">❓</div>
+                          <div className="text-xs text-gray-500">Unknown</div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Traits Intel */}
+                    <div className="text-center p-2 bg-purple-50 rounded-lg">
+                      <div className="text-xs font-semibold text-purple-600 mb-1">STYLE</div>
+                      {traitsVisible ? (
+                        horse.traits.length > 0 ? (
+                          <div>
+                            <div className="text-lg">
+                              {TRAIT_DEFINITIONS[horse.traits[0]]?.icon || '🏇'}
+                            </div>
+                            <div className="text-xs text-purple-600 font-medium">
+                              {horse.traits.length} trait{horse.traits.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="text-lg text-gray-500">○</div>
+                            <div className="text-xs text-gray-500">Basic</div>
+                          </div>
+                        )
+                      ) : (
+                        <div>
+                          <div className="text-lg text-gray-400">❓</div>
+                          <div className="text-xs text-gray-500">Unknown</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Entry fee selector
 function EntryFeeSelector({ fees, selectedFee, onSelectFee, wallet, raceNumber }) {
   const { calculatePrizePool } = window.RaceSystem;
@@ -212,105 +579,105 @@ function EntryFeeSelector({ fees, selectedFee, onSelectFee, wallet, raceNumber }
   );
 }
 
-// Horse card component - Compact version
-function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExpertise }) {
+// Consistent Horse Card (matches opponent format)
+function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExpertise, isPlayerHorse = false }) {
   const { TRAIT_DEFINITIONS } = window.GameConfig;
   const { calculateDistanceFit } = window.HorseSystem;
   
   const distanceFit = calculateDistanceFit(horse, raceDistance);
   const expertise = getDistanceExpertise(distanceFit);
   
+  // Calculate performance assessment (similar to threat assessment for opponents)
+  const getPerformanceAssessment = (speed, booster) => {
+    const combined = speed + (booster * 0.5);
+    if (combined >= 85) return { level: 'ELITE', color: 'bg-purple-500 text-white', icon: '⭐', advice: 'Top performer' };
+    if (combined >= 70) return { level: 'STRONG', color: 'bg-blue-500 text-white', icon: '💪', advice: 'Solid choice' };
+    if (combined >= 55) return { level: 'GOOD', color: 'bg-green-500 text-white', icon: '✓', advice: 'Reliable option' };
+    if (combined >= 40) return { level: 'AVERAGE', color: 'bg-yellow-500 text-white', icon: '○', advice: 'Decent backup' };
+    return { level: 'DEVELOPING', color: 'bg-gray-500 text-white', icon: '△', advice: 'Needs improvement' };
+  };
+  
+  const performance = getPerformanceAssessment(horse.speed, horse.boosterPower);
+  
   return (
     <div
       onClick={onSelect}
-      className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
+      className={`cursor-pointer transition-all hover:shadow-lg ${
         isSelected 
-          ? 'border-blue-500 bg-blue-50' 
-          : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
-      } ${horse.fatigue > 80 ? 'opacity-75' : ''}`}
+          ? 'bg-white border-2 border-blue-500 rounded-xl p-4 shadow-lg ring-2 ring-blue-200' 
+          : 'bg-white border-2 border-gray-200 rounded-xl p-4'
+      }`}
     >
-      <div className="flex items-start space-y-2 flex-col w-full">
-        {/* Horse Name and Icon */}
+      {/* Header with Performance Assessment */}
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-3">
           <HorseIcon color={horse.color} size="md" />
-          <div className="flex flex-col">
-            <div className="font-bold text-sm">{horse.name}</div>
-            {horse.fatigue > 0 && (
-              <div className={`flex items-center space-x-1 text-xs ${horse.fatigue > 80 ? 'text-red-600' : horse.fatigue > 40 ? 'text-yellow-600' : 'text-orange-600'}`}>
-                <span>😴</span>
-                <span className="font-medium">Fatigue: {horse.fatigue}%</span>
-              </div>
-            )}
+          <div>
+            <div className="font-bold text-lg text-gray-900">{horse.name}</div>
+            <div className="text-sm text-gray-600">Your Champion</div>
           </div>
         </div>
-        
-        {/* STATS SECTION */}
-        <div className="w-full">
-          <div className="text-xs font-semibold text-gray-700 mb-1">STATS</div>
-          <div className="flex items-center space-x-3 bg-blue-50 rounded px-3 py-2">
-            <div 
-              className="text-xs cursor-help tooltip"
-              data-tooltip="Speed: How fast this horse runs. Higher = better chance to win!"
-            >
-              <span className="text-gray-500">Speed:</span> <span className="font-bold text-blue-600">{horse.speed}</span>
-            </div>
-            <div 
-              className="text-xs cursor-help tooltip"
-              data-tooltip="Booster Power: Amplifies all trait and race effects. Higher = stronger trait bonuses!"
-            >
-              <span className="text-gray-500">Booster:</span> <span className="font-bold text-green-600">{horse.boosterPower}</span>
-            </div>
-          </div>
+        <div className={`px-3 py-1 rounded-full font-bold text-sm ${performance.color}`}>
+          <span className="mr-1">{performance.icon}</span>
+          {performance.level}
         </div>
-        
-        {/* DISTANCE EXPERTISE SECTION */}
-        <div className="w-full">
-          <div className="text-xs font-semibold text-gray-700 mb-1">DISTANCE EXPERTISE</div>
-          <div 
-            className={`flex items-center space-x-2 rounded px-3 py-2 cursor-help tooltip ${expertise.bgColor} ${expertise.color}`}
-            data-tooltip={`Distance Preference: ${horse.distancePreference}m`}
-          >
-            <span className="text-sm">{expertise.icon}</span>
-            <span className="text-xs font-medium">{expertise.text}</span>
-          </div>
+      </div>
+      
+      {/* Performance Summary */}
+      <div className="bg-gray-50 rounded-lg p-3 mb-3">
+        <div className="text-sm font-medium text-gray-700">
+          📊 Assessment: {performance.advice}
         </div>
-        
-        {/* TRAITS SECTION */}
-        <div className="w-full">
-          <div className="text-xs font-semibold text-gray-700 mb-1">TRAITS</div>
-          {horse.traits.length > 0 ? (
-            <div className="flex flex-wrap gap-1">
-              {horse.traits.map(trait => {
-                const traitDef = TRAIT_DEFINITIONS[trait];
-                const isNegative = ['temperamental', 'lazy', 'nervous', 'brittle'].includes(trait);
-                const traitColorClass = isNegative 
-                  ? 'bg-red-100 text-red-800 border border-red-200' 
-                  : 'bg-green-100 text-green-800 border border-green-200';
-                
-                return (
-                  <span 
-                    key={trait} 
-                    className={`${traitColorClass} px-2 py-1 rounded text-xs font-medium cursor-help tooltip`}
-                    data-tooltip={`${traitDef.name}: ${traitDef.description} | Math Impact: ${traitDef.mathImpact}`}
-                  >
-                    {traitDef.icon} {traitDef.name}
-                  </span>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-xs text-gray-500 italic bg-gray-50 rounded px-3 py-2">No special traits</div>
-          )}
-        </div>
-        
-        {/* CONDITION */}
         {horse.fatigue > 0 && (
-          <div className={`flex items-center space-x-2 rounded px-2 py-1 text-xs ${horse.fatigue > 80 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-            <span>😴</span>
-            <span>{horse.fatigue > 80 ? 'Very Tired' : 'Tired'}</span>
+          <div className={`text-sm mt-1 ${horse.fatigue > 80 ? 'text-red-600' : 'text-yellow-600'}`}>
+            ⚠️ {horse.fatigue > 80 ? 'Very tired - reduced performance' : 'Tired - slight impact'}
           </div>
         )}
       </div>
+      
+      {/* Stats Grid (matches opponent format) */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Speed */}
+        <div className="text-center p-2 bg-blue-50 rounded-lg">
+          <div className="text-xs font-semibold text-blue-600 mb-1">SPEED</div>
+          <div className="font-bold text-lg text-blue-700">{horse.speed}</div>
+          <div className="text-xs text-blue-500">Actual</div>
+        </div>
+        
+        {/* Distance Match */}
+        <div className="text-center p-2 bg-green-50 rounded-lg">
+          <div className="text-xs font-semibold text-green-600 mb-1">DISTANCE</div>
+          <div className="text-lg">{expertise.icon}</div>
+          <div className="text-xs text-green-600 font-medium">{expertise.text}</div>
+        </div>
+        
+        {/* Traits/Style */}
+        <div className="text-center p-2 bg-purple-50 rounded-lg">
+          <div className="text-xs font-semibold text-purple-600 mb-1">STYLE</div>
+          {horse.traits.length > 0 ? (
+            <div>
+              <div className="text-lg">
+                {TRAIT_DEFINITIONS[horse.traits[0]]?.icon || '🏇'}
+              </div>
+              <div className="text-xs text-purple-600 font-medium">
+                {horse.traits.length} trait{horse.traits.length !== 1 ? 's' : ''}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div className="text-lg text-gray-500">○</div>
+              <div className="text-xs text-gray-500">Basic</div>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Selection indicator */}
+      {isSelected && (
+        <div className="text-center text-xs mt-3 font-bold text-blue-600">
+          ✓ SELECTED FOR RACE
+        </div>
+      )}
     </div>
   );
 }
@@ -578,34 +945,118 @@ function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanc
   const { calculateDistanceFit } = window.HorseSystem;
   
   const canBreed = parent1 && parent2 && parent1.id !== parent2.id;
+  const raceType = raceDistance === 1000 ? 'Sprint' : raceDistance === 1800 ? 'Medium' : 'Endurance';
   
   return (
     <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg">
-      <h2 className="text-xl sm:text-2xl font-bold mb-4">🐴 Breed Horses 🐴</h2>
+      <h2 className="text-2xl font-bold mb-4 text-center">🐴 Breed New Champion</h2>
       
-      {/* Next Race Info */}
-      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-        <div className="flex items-center justify-center space-x-2 mb-2">
-          <span className="text-blue-600 font-semibold">🏁 Next Race:</span>
-          <span className="text-blue-800 font-bold">{raceDistance}m</span>
-          <span className="text-blue-600">
-            ({raceDistance === 1000 ? 'Sprint' : raceDistance === 1800 ? 'Medium Distance' : 'Endurance'})
+      {/* Breeding Summary */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 mb-6 border border-green-200">
+        <div className="text-center mb-2">
+          <span className="text-lg font-bold text-gray-800">
+            🏁 Next Race: {raceDistance}m {raceType}
           </span>
         </div>
-      </div>
-      
-      {/* Breeding Tips */}
-      <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-        <h3 className="font-bold text-green-800 mb-2">💡 Breeding Tips</h3>
-        <div className="text-sm text-green-700 space-y-1">
-          <div>• <strong>Stats:</strong> Offspring inherit average parent stats with variation</div>
-          <div>• <strong>Distance:</strong> Choose parents with preferences close to upcoming race</div>
-          <div>• <strong>Traits:</strong> Each parent trait has 60% chance to pass down</div>
-          <div>• <strong>Bonus:</strong> 20% chance for offspring to gain a new random trait</div>
+        <div className="text-sm text-gray-600 text-center">
+          Create an offspring by selecting two parent horses. Choose parents with complementary strengths!
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      {/* Parent Selection */}
+      <div className="space-y-6">
+        {/* First Parent */}
+        <div>
+          <h3 className="text-lg font-bold mb-3 text-blue-600">👨 Select First Parent</h3>
+          <div className="space-y-3">
+            {horses.map(horse => {
+              const isSelected = parent1?.id === horse.id;
+              const isDisabled = parent2?.id === horse.id;
+              
+              return (
+                <div
+                  key={horse.id}
+                  onClick={() => !isDisabled && setParent1(horse)}
+                  className={`cursor-pointer transition-all ${
+                    isSelected 
+                      ? 'opacity-100' 
+                      : isDisabled 
+                        ? 'opacity-40 cursor-not-allowed'
+                        : 'opacity-80 hover:opacity-100'
+                  }`}
+                >
+                  <HorseCard
+                    horse={horse}
+                    isSelected={isSelected}
+                    onSelect={() => !isDisabled && setParent1(horse)}
+                    raceDistance={raceDistance}
+                    getDistanceExpertise={getDistanceExpertise}
+                    isPlayerHorse={true}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Second Parent */}
+        <div>
+          <h3 className="text-lg font-bold mb-3 text-pink-600">👩 Select Second Parent</h3>
+          <div className="space-y-3">
+            {horses.map(horse => {
+              const isSelected = parent2?.id === horse.id;
+              const isDisabled = parent1?.id === horse.id;
+              
+              return (
+                <div
+                  key={horse.id}
+                  onClick={() => !isDisabled && setParent2(horse)}
+                  className={`cursor-pointer transition-all ${
+                    isSelected 
+                      ? 'opacity-100' 
+                      : isDisabled 
+                        ? 'opacity-40 cursor-not-allowed'
+                        : 'opacity-80 hover:opacity-100'
+                  }`}
+                >
+                  <HorseCard
+                    horse={horse}
+                    isSelected={isSelected}
+                    onSelect={() => !isDisabled && setParent2(horse)}
+                    raceDistance={raceDistance}
+                    getDistanceExpertise={getDistanceExpertise}
+                    isPlayerHorse={true}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-3 mt-6">
+        <button
+          onClick={onCancel}
+          className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-bold"
+        >
+          Skip Breeding
+        </button>
+        <button
+          onClick={() => canBreed && onBreed(parent1, parent2)}
+          disabled={!canBreed}
+          className={`px-6 py-3 rounded-lg transition-colors font-bold flex-1 ${
+            canBreed 
+              ? 'bg-green-500 text-white hover:bg-green-600' 
+              : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          {canBreed ? '🐴 Create Offspring' : 'Select Two Different Parents'}
+        </button>
+      </div>
+    </div>
+  );
+}
         {/* Parent 1 Selection */}
         <div>
           <h3 className="font-bold mb-3">Select First Parent:</h3>
@@ -763,45 +1214,6 @@ function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanc
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* Breeding Preview */}
-      {parent1 && parent2 && (
-        <div className="mt-6 p-4 bg-green-50 rounded-lg">
-          <h4 className="font-bold mb-2">Breeding Preview:</h4>
-          <div className="text-sm space-y-1">
-            <p>Parent 1: {parent1.name} (Speed: {parent1.speed}, Booster: {parent1.boosterPower})</p>
-            <p>Parent 2: {parent2.name} (Speed: {parent2.speed}, Booster: {parent2.boosterPower})</p>
-            <p className="text-green-600 font-medium">
-              Offspring will inherit traits and stats from both parents!
-            </p>
-          </div>
-        </div>
-      )}
-      
-      {/* Action Buttons */}
-      <div className="mt-6 flex gap-4">
-        <button
-          onClick={() => canBreed && onBreed(parent1, parent2)}
-          disabled={!canBreed}
-          className={`flex-1 py-3 rounded-lg font-bold transition-colors ${
-            canBreed
-              ? 'bg-green-500 text-white hover:bg-green-600'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          Breed Horses
-        </button>
-        <button
-          onClick={onCancel}
-          className="flex-1 bg-gray-500 text-white py-3 rounded-lg hover:bg-gray-600 transition-colors font-bold"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // Horse Buying Interface Component
 function HorseBuyingInterface({ horses, onPurchase, onCancel, getDistanceExpertise }) {
@@ -907,7 +1319,7 @@ function StableRacingGame() {
 
   // === GAME STATE ===
   const [wallet, setWallet] = useState(GAME_CONSTANTS.INITIAL_WALLET);
-  const [gamePhase, setGamePhase] = useState(GAME_PHASES.HORSE_SELECTION);
+  const [gamePhase, setGamePhase] = useState(GAME_PHASES.GAME_GUIDE);
   const [playerHorses, setPlayerHorses] = useState([]);
   const [aiHorses, setAiHorses] = useState([]);
   const [selectedHorse, setSelectedHorse] = useState(null);
@@ -945,6 +1357,13 @@ function StableRacingGame() {
       { amount: Math.min(Math.floor(minBet * 5), maxAllowed), multiplier: 3, label: 'Max' }
     ].filter(fee => fee.amount <= wallet && fee.amount > 0);
   }, [raceNumber, wallet]);
+
+  // Auto-select minimum fee if available and none selected
+  useEffect(() => {
+    if (!selectedEntryFee && entryFees.length > 0) {
+      setSelectedEntryFee(entryFees[0]); // Select the minimum fee by default
+    }
+  }, [entryFees, selectedEntryFee]);
 
   // Calculate prize pool for selected entry fee
   const prizePool = useMemo(() => 
@@ -1154,7 +1573,7 @@ function StableRacingGame() {
   const restartGame = useCallback(() => {
     setWallet(GAME_CONSTANTS.INITIAL_WALLET);
     setRaceNumber(1);
-    setGamePhase(GAME_PHASES.HORSE_SELECTION);
+    setGamePhase(GAME_PHASES.GAME_GUIDE);
     setRaceResults([]);
     setRacePositions({});
     setSelectedEntryFee(null);
@@ -1175,20 +1594,70 @@ function StableRacingGame() {
   // === ACTION BAR COMPONENT ===
   
   const ActionBar = () => {
-    if (gamePhase === GAME_PHASES.HORSE_SELECTION && selectedHorse && selectedEntryFee) {
+    if (gamePhase === GAME_PHASES.HORSE_SELECTION) {
+      const canStart = selectedHorse && selectedEntryFee;
+      const raceType = raceDistance === 1000 ? 'Sprint' : raceDistance === 1800 ? 'Medium' : 'Endurance';
+      
       return (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 p-4 shadow-lg z-40">
-          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-            <div className="text-sm sm:text-lg text-center sm:text-left">
-              <span className="font-bold">Selected:</span> {selectedHorse.name} | 
-              <span className="font-bold ml-2">Entry:</span> ${selectedEntryFee.amount}
+          <div className="max-w-6xl mx-auto">
+            {/* Race Info */}
+            <div className="text-center mb-3">
+              <span className="text-lg font-bold text-gray-800">
+                🏁 Race {raceNumber}: {raceDistance}m {raceType}
+              </span>
             </div>
-            <button
-              onClick={startRace}
-              className="bg-green-500 text-white px-6 sm:px-8 py-3 rounded-lg hover:bg-green-600 transition-colors text-base sm:text-lg font-bold w-full sm:w-auto"
-            >
-              Start Race 🏁
-            </button>
+            
+            {/* Controls */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              {/* Horse Selection Status */}
+              <div className="flex-1 text-center sm:text-left">
+                {selectedHorse ? (
+                  <span className="text-sm sm:text-base">
+                    <span className="font-bold">Horse:</span> {selectedHorse.name}
+                  </span>
+                ) : (
+                  <span className="text-gray-600 text-sm sm:text-base">
+                    Select a horse above
+                  </span>
+                )}
+              </div>
+              
+              {/* Entry Fee Dropdown */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Entry:</label>
+                <select
+                  value={selectedEntryFee?.amount || ''}
+                  onChange={(e) => {
+                    const amount = parseInt(e.target.value);
+                    const fee = entryFees.find(f => f.amount === amount);
+                    setSelectedEntryFee(fee || null);
+                  }}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white"
+                  disabled={entryFees.length === 0}
+                >
+                  <option value="">Select Fee</option>
+                  {entryFees.map(fee => (
+                    <option key={fee.amount} value={fee.amount}>
+                      ${fee.amount}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Start Button */}
+              <button
+                onClick={canStart ? startRace : undefined}
+                disabled={!canStart}
+                className={`px-6 py-3 rounded-lg transition-colors text-base font-bold ${
+                  canStart 
+                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                    : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                {canStart ? 'Start Race 🏁' : 'Select Horse & Fee'}
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -1197,6 +1666,11 @@ function StableRacingGame() {
   };
 
   // === MAIN RENDER ===
+  
+  // Show game guide first
+  if (gamePhase === GAME_PHASES.GAME_GUIDE) {
+    return <GameGuide onStartGame={() => setGamePhase(GAME_PHASES.HORSE_SELECTION)} />;
+  }
   
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-800 to-green-600 p-2 sm:p-4">
@@ -1215,278 +1689,28 @@ function StableRacingGame() {
         {/* Horse Selection Phase */}
         {gamePhase === GAME_PHASES.HORSE_SELECTION && (
           <div className="pb-24 sm:pb-32">
-            {/* Beginner Tutorial for First Race */}
-            {raceNumber === 1 && (
-              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-6 shadow-lg">
-                <div className="flex items-start space-x-3">
-                  <div className="text-2xl">🏇</div>
-                  <div>
-                    <h3 className="font-bold text-green-800 mb-2">Welcome to Stable Manager!</h3>
-                    <div className="text-sm text-green-700 space-y-1">
-                      <div>• <strong>Goal:</strong> Build your stable to $1,000 wealth</div>
-                      <div>• <strong>How to play:</strong> Pick an entry fee → Select your best horse → Race!</div>
-                      <div>• <strong>Win money:</strong> Finish 1st, 2nd, or 3rd place to earn prize money</div>
-                      <div>• <strong>Strategy:</strong> Match horses to race distances and manage your horses' fatigue</div>
-                    </div>
-                  </div>
+            
+            {/* Not Enough Money Warning */}
+            {entryFees.length === 0 && (
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-6 text-center">
+                <div className="text-red-600 font-bold text-lg">
+                  ⚠️ Not enough money for entry fees!
+                </div>
+                <div className="text-red-500 text-sm mt-1">
+                  You need at least ${Math.floor(10 * Math.pow(GAME_CONSTANTS.MIN_ENTRY_MULTIPLIER, raceNumber - 1))} to enter this race
                 </div>
               </div>
             )}
-            
-            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg">
-              <h2 className="text-xl sm:text-2xl font-bold mb-4">
-                🏁 Race {raceNumber} - Choose Your Strategy
-              </h2>
-              
-              <EntryFeeSelector
-                fees={entryFees}
-                selectedFee={selectedEntryFee}
-                onSelectFee={setSelectedEntryFee}
-                wallet={wallet}
-                raceNumber={raceNumber}
-              />
-              
-              {entryFees.length === 0 && (
-                <div className="text-red-600 font-bold text-center mb-4">
-                  ⚠️ Not enough money for entry fees! You need at least ${Math.floor(10 * Math.pow(GAME_CONSTANTS.MIN_ENTRY_MULTIPLIER, raceNumber - 1))}
-                </div>
-              )}
-              
-              {/* Player Horses */}
-              <div className="mb-6">
-                <h3 className="text-base sm:text-lg font-bold mb-3 text-blue-600">🏇 Your Stable - Select Your Champion</h3>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="space-y-2">
-                    {[...playerHorses].sort((a, b) => a.distancePreference - b.distancePreference).map(horse => {
-                      const { calculateDistanceFit } = window.HorseSystem;
-                      const distanceFit = calculateDistanceFit(horse, raceDistance);
-                      const expertise = getDistanceExpertise(distanceFit);
-                      
-                      return (
-                        <div 
-                          key={horse.id}
-                          onClick={() => setSelectedHorse(horse)}
-                          className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all ${
-                            selectedHorse?.id === horse.id
-                              ? 'bg-blue-100 border-2 border-blue-500'
-                              : 'bg-white hover:bg-blue-50 border border-gray-200'
-                          }`}
-                        >
-                          <div className="grid grid-cols-4 gap-4 items-center w-full">
-                            {/* Horse Name and Icon */}
-                            <div className="flex items-center space-x-2 min-w-0">
-                              <HorseIcon color={horse.color} size="sm" />
-                              <div className="flex flex-col min-w-0">
-                                <span className="text-sm font-bold text-blue-800 truncate">{horse.name}</span>
-                                {horse.fatigue > 0 && (
-                                  <div className={`flex items-center space-x-1 text-xs ${horse.fatigue > 80 ? 'text-red-600' : horse.fatigue > 40 ? 'text-yellow-600' : 'text-orange-600'}`}>
-                                    <span>😴</span>
-                                    <span className="font-medium">Fatigue: {horse.fatigue}%</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* STATS */}
-                            <div className="flex items-center justify-center">
-                              <div className="flex items-center space-x-2 bg-blue-50 rounded px-3 py-1">
-                                <div className="text-xs">
-                                  <span className="text-gray-600">Speed:</span> <span className="font-bold text-blue-700">{horse.speed}</span>
-                                </div>
-                                <div className="text-xs">
-                                  <span className="text-gray-600">Booster:</span> <span className="font-bold text-green-700">{horse.boosterPower}</span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* DISTANCE EXPERTISE */}
-                            <div className="flex items-center justify-center">
-                              <div 
-                                className={`flex items-center space-x-1 rounded px-2 py-1 cursor-help tooltip ${expertise.bgColor} ${expertise.color}`}
-                                data-tooltip={`Distance Preference: ${horse.distancePreference}m`}
-                              >
-                                <span className="text-sm">{expertise.icon}</span>
-                                <span className="text-xs font-medium">{expertise.text}</span>
-                              </div>
-                            </div>
-                            
-                            {/* TRAITS */}
-                            <div className="flex gap-1 flex-wrap justify-center min-w-0">
-                              {horse.traits.length > 0 ? (
-                                horse.traits.map(trait => {
-                                  const traitDef = TRAIT_DEFINITIONS[trait];
-                                  const isNegative = ['temperamental', 'lazy', 'nervous', 'brittle'].includes(trait);
-                                  const traitColorClass = isNegative 
-                                    ? 'bg-red-100 text-red-800 border border-red-200' 
-                                    : 'bg-green-100 text-green-800 border border-green-200';
-                                    
-                                  return (
-                                    <span 
-                                      key={trait} 
-                                      className={`${traitColorClass} px-1 py-0.5 rounded text-xs font-medium flex-shrink-0 cursor-help tooltip`}
-                                      data-tooltip={`${traitDef.name}: ${traitDef.description} | Math Impact: ${traitDef.mathImpact}`}
-                                    >
-                                      {traitDef.icon} {traitDef.name}
-                                    </span>
-                                  );
-                                })
-                              ) : (
-                                <span className="text-xs text-gray-500 italic">No traits</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
 
-              {/* Scout Report */}
-              <div className="mt-6">
-                <h3 className="text-base sm:text-lg font-bold mb-3 text-red-600">🕵️ Scout Report - Your Competition</h3>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3 text-sm">
-                  <div className="flex items-center mb-1">
-                    <span className="text-red-600 mr-2">💡</span>
-                    <span className="font-medium text-red-800">Intel on your opponents:</span>
-                  </div>
-                  <div className="text-red-700 ml-6">
-                    Check their traits and reputation to plan your strategy!
-                  </div>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <div className="space-y-2">
-                    {[...aiHorses].sort((a, b) => {
-                      // Calculate estimated speeds as shown to player
-                      const aVisible = (a.id * 1234) % 10 >= 4;
-                      const bVisible = (b.id * 1234) % 10 >= 4;
-                      
-                      const aEstimatedSpeed = aVisible ? Math.floor(a.speed * 0.85 + ((a.id * 777) % 30)) : a.speed;
-                      const bEstimatedSpeed = bVisible ? Math.floor(b.speed * 0.85 + ((b.id * 777) % 30)) : b.speed;
-                      
-                      return bEstimatedSpeed - aEstimatedSpeed; // Sort by estimated speed descending
-                    }).map(horse => {
-                      const reputation = calculateHorseReputation(horse);
-                      const scoutNotes = scoutReports[horse.id] || [];
-                      const { calculateDistanceFit } = window.HorseSystem;
-                      const distanceFit = calculateDistanceFit(horse, raceDistance);
-                      const expertise = getDistanceExpertise(distanceFit);
-                      
-                      return (
-                        <div key={horse.id} className="border-b border-gray-200 pb-2 last:border-b-0">
-                          <div className="p-3 rounded-lg bg-white border border-gray-200">
-                            <div className="grid grid-cols-4 gap-4 items-center w-full">
-                              {/* Horse Name and Icon */}
-                              <div className="flex items-center space-x-2 min-w-0">
-                                <HorseIcon color={horse.color} size="sm" />
-                                <span className="text-sm font-bold text-red-800 truncate">{horse.name}</span>
-                              </div>
-                              
-                              {/* STATS - 60% chance to show */}
-                              <div className="flex items-center justify-center">
-                                {(horse.id * 1234) % 10 >= 4 ? (
-                                  <div className="flex items-center space-x-2 bg-red-50 rounded px-3 py-1">
-                                    <div className="text-xs cursor-help tooltip" data-tooltip="Speed: How fast this horse runs. Higher = better chance to win!">
-                                      <span className="text-gray-600">Speed:</span> <span className="font-bold text-red-700">{Math.floor(horse.speed * 0.85 + ((horse.id * 777) % 30))}</span>
-                                    </div>
-                                    <div className="text-xs cursor-help tooltip" data-tooltip="Booster Power: Amplifies all trait and race effects. Higher = stronger trait bonuses!">
-                                      <span className="text-gray-600">Booster:</span> <span className="font-bold text-green-700">{Math.floor(horse.boosterPower * 0.85 + ((horse.id * 888) % 30))}</span>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  (() => {
-                                    // Calculate threat level based on speed comparison to best player horse
-                                    const bestPlayerSpeed = Math.max(...playerHorses.map(h => h.speed));
-                                    const threatRatio = horse.speed / bestPlayerSpeed;
-                                    
-                                    let threatLevel, threatColor, threatIcon;
-                                    if (threatRatio > 1.4) {
-                                      threatLevel = 'MAJOR THREAT';
-                                      threatColor = 'text-red-700 bg-red-100';
-                                      threatIcon = '⚠️';
-                                    } else if (threatRatio > 1.2) {
-                                      threatLevel = 'Strong';
-                                      threatColor = 'text-orange-700 bg-orange-100';
-                                      threatIcon = '⚡';
-                                    } else if (threatRatio > 1.0) {
-                                      threatLevel = 'Competitive';
-                                      threatColor = 'text-yellow-700 bg-yellow-100';
-                                      threatIcon = '💪';
-                                    } else if (threatRatio > 0.85) {
-                                      threatLevel = 'Moderate';
-                                      threatColor = 'text-blue-700 bg-blue-100';
-                                      threatIcon = '👍';
-                                    } else {
-                                      threatLevel = 'Weak';
-                                      threatColor = 'text-green-700 bg-green-100';
-                                      threatIcon = '😴';
-                                    }
-                                    
-                                    return (
-                                      <div className={`flex items-center space-x-1 rounded px-2 py-1 text-xs cursor-help tooltip ${threatColor}`} data-tooltip={`Threat Level: Based on scout's assessment of their speed relative to your best horse`}>
-                                        <span>{threatIcon}</span>
-                                        <span className="font-medium">{threatLevel}</span>
-                                      </div>
-                                    );
-                                  })()
-                                )}
-                              </div>
-                              
-                              {/* DISTANCE EXPERTISE - 60% chance to show */}
-                              <div className="flex items-center justify-center">
-                                {(horse.id * 5678) % 10 >= 4 ? (
-                                  <div 
-                                    className={`flex items-center space-x-1 rounded px-2 py-1 cursor-help tooltip ${expertise.bgColor} ${expertise.color}`}
-                                    data-tooltip={`Distance Preference: ${horse.distancePreference}m`}
-                                  >
-                                    <span className="text-sm">{expertise.icon}</span>
-                                    <span className="text-xs font-medium">{expertise.text}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-gray-500 italic">Distance unknown</span>
-                                )}
-                              </div>
-                              
-                              {/* TRAITS - 60% chance to show each trait */}
-                              <div className="flex gap-1 flex-wrap justify-center min-w-0">
-                                {(() => {
-                                  const visibleTraits = horse.traits.filter((trait, index) => 
-                                    ((horse.id * (index + 100) * 91) % 10) >= 4
-                                  );
-                                  
-                                  if (visibleTraits.length > 0) {
-                                    return visibleTraits.map(trait => {
-                                      const traitDef = TRAIT_DEFINITIONS[trait];
-                                      const isNegative = ['temperamental', 'lazy', 'nervous', 'brittle'].includes(trait);
-                                      const traitColorClass = isNegative 
-                                        ? 'bg-red-100 text-red-800 border border-red-200' 
-                                        : 'bg-green-100 text-green-800 border border-green-200';
-                                      
-                                      return (
-                                        <span 
-                                          key={trait}
-                                          className={`${traitColorClass} px-1 py-0.5 rounded text-xs font-medium cursor-help tooltip flex-shrink-0`}
-                                          data-tooltip={`${traitDef.name}: ${traitDef.description} | Math Impact: ${traitDef.mathImpact}`}
-                                        >
-                                          {traitDef.icon} {traitDef.name}
-                                        </span>
-                                      );
-                                    });
-                                  } else {
-                                    return <span className="text-xs text-gray-500 italic">Traits unknown</span>;
-                                  }
-                                })()}
-                              </div>
-                              
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Tab System for Mobile */}
+            <HorseSelectionTabs
+              playerHorses={playerHorses}
+              aiHorses={aiHorses}
+              selectedHorse={selectedHorse}
+              setSelectedHorse={setSelectedHorse}
+              raceDistance={raceDistance}
+              getDistanceExpertise={getDistanceExpertise}
+            />
           </div>
         )}
 

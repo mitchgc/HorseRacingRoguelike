@@ -78,6 +78,7 @@ const HORSE_NAMES = [
 const RACE_DISTANCES = [1000, 1800, 2400]; // Race distances in meters
 
 const GAME_PHASES = {
+  GAME_GUIDE: 'gameGuide',
   HORSE_SELECTION: 'horseSelection',
   RACING: 'racing',
   POST_RACE: 'postRace',
