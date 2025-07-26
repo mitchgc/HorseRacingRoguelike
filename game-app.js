@@ -118,6 +118,14 @@ function GameGuide({ onStartGame }) {
           <p className="text-lg text-gray-600">Build the ultimate horse racing stable!</p>
         </div>
         
+        {/* Start Button - Moved to top for experienced players */}
+        <button
+          onClick={onStartGame}
+          className="w-full bg-green-500 text-white text-xl font-bold py-4 rounded-lg hover:bg-green-600 transition-all transform hover:scale-105 shadow-lg mb-8"
+        >
+          🏁 Start Playing! 🏁
+        </button>
+        
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           {/* How to Play */}
           <div className="bg-blue-50 rounded-lg p-6">
@@ -183,7 +191,7 @@ function GameGuide({ onStartGame }) {
         </div>
         
         {/* Strategy Tips */}
-        <div className="bg-yellow-50 rounded-lg p-6 mb-8">
+        <div className="bg-yellow-50 rounded-lg p-6">
           <h2 className="text-2xl font-bold text-yellow-700 mb-4">💡 Strategy Tips</h2>
           <div className="grid sm:grid-cols-2 gap-4 text-sm">
             <div>
@@ -200,14 +208,6 @@ function GameGuide({ onStartGame }) {
             </div>
           </div>
         </div>
-        
-        {/* Start Button */}
-        <button
-          onClick={onStartGame}
-          className="w-full bg-green-500 text-white text-xl font-bold py-4 rounded-lg hover:bg-green-600 transition-all transform hover:scale-105 shadow-lg"
-        >
-          🏁 Start Playing! 🏁
-        </button>
       </div>
     </div>
   );
@@ -1052,254 +1052,6 @@ function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanc
           }`}
         >
           {canBreed ? '🐴 Create Offspring' : 'Select Two Different Parents'}
-        </button>
-      </div>
-    </div>
-  );
-}
-        {/* Parent 1 Selection */}
-        <div>
-          <h3 className="font-bold mb-3">Select First Parent:</h3>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <div className="space-y-2">
-              {[...horses].sort((a, b) => a.distancePreference - b.distancePreference).map(horse => {
-                const distanceFit = calculateDistanceFit(horse, raceDistance);
-                const expertise = getDistanceExpertise(distanceFit);
-                const isSelected = parent1?.id === horse.id;
-                const isDisabled = parent2?.id === horse.id;
-                
-                return (
-                  <div
-                    key={horse.id}
-                    onClick={() => !isDisabled && setParent1(horse)}
-                    className={`p-2 rounded cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-blue-100 border-2 border-blue-500'
-                        : isDisabled
-                        ? 'bg-gray-100 border border-gray-300 cursor-not-allowed opacity-50'
-                        : 'bg-white hover:bg-blue-50 border border-gray-200'
-                    }`}
-                  >
-                    <div className="grid grid-cols-4 gap-2 items-center text-xs">
-                      {/* Name & Fatigue */}
-                      <div className="flex items-center space-x-1">
-                        <HorseIcon color={horse.color} size="sm" />
-                        <div>
-                          <div className="font-bold truncate">{horse.name}</div>
-                          {horse.fatigue > 0 && (
-                            <div className={`text-xs ${horse.fatigue > 80 ? 'text-red-600' : horse.fatigue > 40 ? 'text-yellow-600' : 'text-orange-600'}`}>
-                              😴 {horse.fatigue}%
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Stats */}
-                      <div className="text-center">
-                        <span className="text-gray-600">S:</span> <span className="font-bold">{horse.speed}</span>
-                        <span className="mx-1">|</span>
-                        <span className="text-gray-600">B:</span> <span className="font-bold">{horse.boosterPower}</span>
-                      </div>
-                      
-                      {/* Distance */}
-                      <div className="text-center">
-                        <div 
-                          className={`inline-block px-2 py-1 rounded cursor-help tooltip ${expertise.bgColor} ${expertise.color}`}
-                          data-tooltip={`Distance Preference: ${horse.distancePreference}m`}
-                        >
-                          {expertise.text}
-                        </div>
-                      </div>
-                      
-                      {/* Traits */}
-                      <div className="text-center">
-                        {horse.traits.length > 0 ? (
-                          <div className="flex gap-1 justify-center">
-                            {horse.traits.map(trait => {
-                              const traitDef = TRAIT_DEFINITIONS[trait];
-                              return (
-                                <span key={trait} title={traitDef.name}>
-                                  {traitDef.icon}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-        
-        {/* Parent 2 Selection */}
-        <div>
-          <h3 className="font-bold mb-3">Select Second Parent:</h3>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-            <div className="space-y-2">
-              {[...horses].sort((a, b) => a.distancePreference - b.distancePreference).map(horse => {
-                const distanceFit = calculateDistanceFit(horse, raceDistance);
-                const expertise = getDistanceExpertise(distanceFit);
-                const isSelected = parent2?.id === horse.id;
-                const isDisabled = parent1?.id === horse.id;
-                
-                return (
-                  <div
-                    key={horse.id}
-                    onClick={() => !isDisabled && setParent2(horse)}
-                    className={`p-2 rounded cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-purple-100 border-2 border-purple-500'
-                        : isDisabled
-                        ? 'bg-gray-100 border border-gray-300 cursor-not-allowed opacity-50'
-                        : 'bg-white hover:bg-purple-50 border border-gray-200'
-                    }`}
-                  >
-                    <div className="grid grid-cols-4 gap-2 items-center text-xs">
-                      {/* Name & Fatigue */}
-                      <div className="flex items-center space-x-1">
-                        <HorseIcon color={horse.color} size="sm" />
-                        <div>
-                          <div className="font-bold truncate">{horse.name}</div>
-                          {horse.fatigue > 0 && (
-                            <div className={`text-xs ${horse.fatigue > 80 ? 'text-red-600' : horse.fatigue > 40 ? 'text-yellow-600' : 'text-orange-600'}`}>
-                              😴 {horse.fatigue}%
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Stats */}
-                      <div className="text-center">
-                        <span className="text-gray-600">S:</span> <span className="font-bold">{horse.speed}</span>
-                        <span className="mx-1">|</span>
-                        <span className="text-gray-600">B:</span> <span className="font-bold">{horse.boosterPower}</span>
-                      </div>
-                      
-                      {/* Distance */}
-                      <div className="text-center">
-                        <div 
-                          className={`inline-block px-2 py-1 rounded cursor-help tooltip ${expertise.bgColor} ${expertise.color}`}
-                          data-tooltip={`Distance Preference: ${horse.distancePreference}m`}
-                        >
-                          {expertise.text}
-                        </div>
-                      </div>
-                      
-                      {/* Traits */}
-                      <div className="text-center">
-                        {horse.traits.length > 0 ? (
-                          <div className="flex gap-1 justify-center">
-                            {horse.traits.map(trait => {
-                              const traitDef = TRAIT_DEFINITIONS[trait];
-                              return (
-                                <span key={trait} title={traitDef.name}>
-                                  {traitDef.icon}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-// Horse Buying Interface Component
-function HorseBuyingInterface({ horses, onPurchase, onCancel, getDistanceExpertise }) {
-  const { TRAIT_DEFINITIONS, calculateDistanceFit } = window.HorseSystem || {};
-  
-  return (
-    <div className="bg-white rounded-lg p-6 shadow-lg">
-      <h2 className="text-2xl font-bold mb-4 text-center">🏪 Horse Market</h2>
-      <p className="text-gray-600 mb-6 text-center">Choose your new horse - each specializes in different race distances</p>
-      
-      <div className="grid gap-4">
-        {horses.map((horse, index) => {
-          // Calculate distance expertise for each race distance
-          const shortFit = calculateDistanceFit ? calculateDistanceFit(horse, 1000) : 0;
-          const middleFit = calculateDistanceFit ? calculateDistanceFit(horse, 1800) : 0;
-          const longFit = calculateDistanceFit ? calculateDistanceFit(horse, 2400) : 0;
-          
-          
-          return (
-            <div key={index} className="border-2 border-gray-300 rounded-lg p-4 hover:border-blue-400 transition-colors">
-              {/* Horse Name and Basic Info */}
-              <div className="flex items-center space-x-3 mb-4">
-                <HorseIcon color={horse.color} size="lg" />
-                <div>
-                  <h3 className="text-lg font-bold">{horse.name}</h3>
-                  <p className="text-sm text-gray-600">{horse.description}</p>
-                </div>
-              </div>
-              
-              {/* Stats */}
-              <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">STATS</h4>
-                <div className="flex items-center space-x-4 bg-blue-50 rounded px-3 py-2">
-                  <div className="text-sm">Speed: <span className="font-bold text-blue-700">{horse.speed}</span></div>
-                  <div className="text-sm">Booster: <span className="font-bold text-green-700">{horse.boosterPower}</span></div>
-                </div>
-              </div>
-              
-              {/* Distance Specializations */}
-              <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">DISTANCE EXPERTISE</h4>
-                <div className="grid grid-cols-3 gap-2 cursor-help tooltip" data-tooltip={`Distance Preference: ${horse.distancePreference}m`}>
-                  {[
-                    { distance: '1000m', fit: shortFit, label: 'Sprint' },
-                    { distance: '1800m', fit: middleFit, label: 'Medium' },
-                    { distance: '2400m', fit: longFit, label: 'Endurance' }
-                  ].map(({distance, fit, label}) => {
-                    const expertise = getDistanceExpertise(fit);
-                    return (
-                      <div key={distance} className={`text-center p-2 rounded ${expertise.bgColor}`}>
-                        <div className="text-xs font-medium">{label}</div>
-                        <div className="text-xs">{distance}</div>
-                        <div className={`text-xs font-bold ${expertise.color}`}>{expertise.text}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              
-              {/* Traits Hidden */}
-              <div className="mb-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">TRAITS</h4>
-                <div className="text-sm text-gray-500 italic bg-gray-50 rounded px-3 py-2">
-                  Unknown - traits will be revealed after purchase
-                </div>
-              </div>
-              
-              {/* Purchase Button */}
-              <button
-                onClick={() => onPurchase(horse)}
-                className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition-colors font-bold"
-              >
-                Purchase Horse
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      
-      {/* Cancel Button */}
-      <div className="mt-6 text-center">
-        <button
-          onClick={onCancel}
-          className="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition-colors font-bold"
-        >
-          Cancel Purchase
         </button>
       </div>
     </div>
