@@ -30,31 +30,6 @@ function HorseIcon({ color = '#8B4513', size = 'md' }) {
   );
 }
 
-// Trait badge component
-function TraitBadge({ trait }) {
-  const { TRAIT_DEFINITIONS } = window.GameConfig;
-  const traitDef = TRAIT_DEFINITIONS[trait];
-  if (!traitDef) return null;
-
-  const colorClasses = {
-    yellow: 'bg-yellow-100 text-yellow-800',
-    purple: 'bg-purple-100 text-purple-800', 
-    blue: 'bg-blue-100 text-blue-800',
-    orange: 'bg-orange-100 text-orange-800',
-    green: 'bg-green-100 text-green-800',
-    red: 'bg-red-100 text-red-800'
-  };
-
-  return (
-    <span 
-      className={`px-2 py-1 ${colorClasses[traitDef.color] || 'bg-gray-100 text-gray-800'} rounded text-xs font-medium cursor-help tooltip`}
-      data-tooltip={`${traitDef.name}: ${traitDef.description} | Math Impact: ${traitDef.mathImpact}`}
-    >
-      {traitDef.icon} {traitDef.name}
-    </span>
-  );
-}
-
 // Header component
 function Header({ wallet, raceNumber, horsesCount, raceDistance }) {
   const { GAME_CONSTANTS } = window.GameConfig;
@@ -213,53 +188,88 @@ function GameGuide({ onStartGame }) {
   );
 }
 
+// Utility function to sort horses by performance and distance fit
+function sortHorsesByPerformance(horses) {
+  return [...horses].sort((a, b) => {
+    // Always sort by speed
+    return b.speed - a.speed;
+  });
+}
+
 // Tab-based Horse Selection Component  
 function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelectedHorse, raceDistance, getDistanceExpertise }) {
   const [activeTab, setActiveTab] = useState('stable');
   
   return (
-    <div className="bg-white rounded-lg shadow-lg pb-20"> {/* Add bottom padding for banner */}
-      {/* Tab Navigation */}
-      <div className="flex border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab('stable')}
-          className={`flex-1 py-4 px-6 text-center font-bold transition-colors ${
-            activeTab === 'stable'
-              ? 'bg-blue-500 text-white border-b-2 border-blue-500'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          🏇 Your Stable ({playerHorses.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('competition')}
-          className={`flex-1 py-4 px-6 text-center font-bold transition-colors ${
-            activeTab === 'competition'
-              ? 'bg-red-500 text-white border-b-2 border-red-500'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          🕵️ Competition ({aiHorses.length})
-        </button>
+    <div className="pb-20"> {/* Add bottom padding for banner */}
+      {/* Mobile - Tab Navigation */}
+      <div className="block lg:hidden">
+        <div className="bg-white rounded-lg shadow-lg">
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('stable')}
+              className={`flex-1 py-4 px-6 text-center font-bold transition-colors ${
+                activeTab === 'stable'
+                  ? 'bg-blue-500 text-white border-b-2 border-blue-500'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              🏇 Your Stable ({playerHorses.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('competition')}
+              className={`flex-1 py-4 px-6 text-center font-bold transition-colors ${
+                activeTab === 'competition'
+                  ? 'bg-red-500 text-white border-b-2 border-red-500'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              🕵️ Competition ({aiHorses.length})
+            </button>
+          </div>
+          
+          {/* Tab Content */}
+          <div className="p-4">
+            {activeTab === 'stable' && (
+              <div>
+                <div className="space-y-3">
+                  {sortHorsesByPerformance(playerHorses).map(horse => (
+                    <HorseCard
+                      key={horse.id}
+                      horse={horse}
+                      isSelected={selectedHorse?.id === horse.id}
+                      onSelect={() => setSelectedHorse(horse)}
+                      raceDistance={raceDistance}
+                      getDistanceExpertise={getDistanceExpertise}
+                      isPlayerHorse={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'competition' && (
+              <CompetitionIntel 
+                aiHorses={aiHorses}
+                raceDistance={raceDistance}
+                getDistanceExpertise={getDistanceExpertise}
+                isInTab={true}
+              />
+            )}
+          </div>
+        </div>
       </div>
-      
-      {/* Tab Content */}
-      <div className="p-4">
-        {activeTab === 'stable' && (
-          <div>
-            <h3 className="text-lg font-bold mb-4 text-blue-600">Select Your Champion</h3>
+
+      {/* Desktop - Side by Side Layout */}
+      <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6">
+        {/* Your Stable */}
+        <div className="bg-white rounded-lg shadow-lg">
+          <div className="bg-blue-500 text-white py-4 px-6 rounded-t-lg">
+            <h3 className="text-lg font-bold">🏇 Your Stable ({playerHorses.length})</h3>
+          </div>
+          <div className="p-4">
             <div className="space-y-3">
-              {[...playerHorses].sort((a, b) => {
-                // Sort by performance rating first, then by distance fit
-                const aPerf = a.speed + (a.boosterPower * 0.5);
-                const bPerf = b.speed + (b.boosterPower * 0.5);
-                if (Math.abs(aPerf - bPerf) > 5) return bPerf - aPerf;
-                
-                const { calculateDistanceFit } = window.HorseSystem;
-                const aFit = calculateDistanceFit(a, raceDistance);
-                const bFit = calculateDistanceFit(b, raceDistance);
-                return bFit - aFit;
-              }).map(horse => (
+              {sortHorsesByPerformance(playerHorses).map(horse => (
                 <HorseCard
                   key={horse.id}
                   horse={horse}
@@ -272,24 +282,31 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
               ))}
             </div>
           </div>
-        )}
-        
-        {activeTab === 'competition' && (
-          <CompetitionIntel 
-            aiHorses={aiHorses}
-            playerHorses={playerHorses}
-            raceDistance={raceDistance}
-            getDistanceExpertise={getDistanceExpertise}
-            isInTab={true}
-          />
-        )}
+        </div>
+
+        {/* Competition */}
+        <div className="bg-white rounded-lg shadow-lg">
+          <div className="bg-red-500 text-white py-4 px-6 rounded-t-lg">
+            <h3 className="text-lg font-bold">🕵️ Competition ({aiHorses.length})</h3>
+            <p className="text-sm text-red-100">Intelligence Reports</p>
+          </div>
+          <div className="p-4">
+            <CompetitionIntel 
+              aiHorses={aiHorses}
+              raceDistance={raceDistance}
+              getDistanceExpertise={getDistanceExpertise}
+              isInTab={true}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
+
 // Expandable Competition Intel Component
-function CompetitionIntel({ aiHorses, playerHorses, raceDistance, getDistanceExpertise, isInTab = false }) {
+function CompetitionIntel({ aiHorses, raceDistance, getDistanceExpertise, isInTab = false }) {
   const { TRAIT_DEFINITIONS } = window.GameConfig;
   const [isExpanded, setIsExpanded] = useState(isInTab); // Auto-expand when in tab
   
@@ -320,95 +337,61 @@ function CompetitionIntel({ aiHorses, playerHorses, raceDistance, getDistanceExp
       {/* Content */}
       {(isExpanded || isInTab) && (
         <div className={isInTab ? '' : 'px-4 pb-4'}>
-          <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center mb-2">
-              <span className="text-red-600 mr-2 text-lg">🎯</span>
-              <span className="font-bold text-red-800">Strategic Analysis</span>
-            </div>
-            <div className="text-red-700 text-sm">
-              Our scouts have analyzed the competition. Focus on horses marked as threats!
-            </div>
-          </div>
-          
           <div className="space-y-3">
             {[...aiHorses].sort((a, b) => {
-              // Sort by threat level to player
-              const bestPlayerSpeed = Math.max(...playerHorses.map(h => h.speed));
-              const aThreat = a.speed / bestPlayerSpeed;
-              const bThreat = b.speed / bestPlayerSpeed;
-              return bThreat - aThreat;
+              // Sort by speed
+              return b.speed - a.speed;
             }).map(horse => {
-              // Calculate threat assessment
-              const bestPlayerSpeed = Math.max(...playerHorses.map(h => h.speed));
-              const threatRatio = horse.speed / bestPlayerSpeed;
-              
-              let threatAssessment;
-              if (threatRatio > 1.4) {
-                threatAssessment = { 
-                  level: 'MAJOR THREAT', 
-                  color: 'bg-red-500 text-white', 
-                  icon: '⚠️',
-                  advice: 'Avoid unless confident'
-                };
-              } else if (threatRatio > 1.2) {
-                threatAssessment = { 
-                  level: 'STRONG', 
-                  color: 'bg-orange-500 text-white', 
-                  icon: '⚡',
-                  advice: 'Tough competition'
-                };
-              } else if (threatRatio > 1.0) {
-                threatAssessment = { 
-                  level: 'COMPETITIVE', 
-                  color: 'bg-yellow-500 text-white', 
-                  icon: '💪',
-                  advice: 'Good matchup'
-                };
-              } else {
-                threatAssessment = { 
-                  level: 'BEATABLE', 
-                  color: 'bg-green-500 text-white', 
-                  icon: '👍',
-                  advice: 'Good target'
-                };
-              }
-              
-              // Intelligence gathering (some info may be unknown)
+              // Intelligence gathering (consistent based on horse ID)
               const speedVisible = (horse.id * 1234) % 10 >= 4;
               const traitsVisible = (horse.id * 5678) % 10 >= 3;
               const distanceVisible = (horse.id * 9876) % 10 >= 5;
               
+              // Consistent estimated speed (no random component)
+              const estimatedSpeed = speedVisible ? Math.floor(horse.speed * 0.9 + (horse.id % 10)) : null;
+              
               return (
                 <div key={horse.id} className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow">
-                  {/* Header with Threat Assessment */}
+                  {/* Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
                       <HorseIcon color={horse.color} size="md" />
                       <div>
-                        <div className="font-bold text-lg text-gray-900">{horse.name}</div>
-                        <div className="text-sm text-gray-600">Competitor #{horse.id}</div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-lg text-gray-900">{horse.name}</span>
+                          {/* Trait Pills */}
+                          {traitsVisible && (
+                            <div className="flex space-x-1">
+                              {horse.traits.map(trait => {
+                                const traitDef = TRAIT_DEFINITIONS[trait];
+                                const isPositive = !['temperamental', 'lazy', 'nervous', 'brittle'].includes(trait);
+                                const colorClass = isPositive 
+                                  ? 'bg-green-100 text-green-700 border-green-200' 
+                                  : 'bg-red-100 text-red-700 border-red-200';
+                                
+                                return (
+                                  <span 
+                                    key={trait}
+                                    className={`px-2 py-0.5 text-xs font-medium rounded-full border ${colorClass}`}
+                                  >
+                                    {traitDef.name}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full font-bold text-sm ${threatAssessment.color}`}>
-                      <span className="mr-1">{threatAssessment.icon}</span>
-                      {threatAssessment.level}
-                    </div>
-                  </div>
-                  
-                  {/* Strategic Advice */}
-                  <div className="bg-gray-50 rounded-lg p-3 mb-3">
-                    <div className="text-sm font-medium text-gray-700">
-                      📊 Analysis: {threatAssessment.advice}
                     </div>
                   </div>
                   
                   {/* Intelligence Grid */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {/* Speed Intel */}
                     <div className="text-center p-2 bg-blue-50 rounded-lg">
                       <div className="text-xs font-semibold text-blue-600 mb-1">SPEED</div>
                       <div className="font-bold text-lg text-blue-700">
-                        {speedVisible ? Math.floor(horse.speed * 0.9 + Math.random() * 10) : '???'}
+                        {speedVisible ? estimatedSpeed : '???'}
                       </div>
                       <div className="text-xs text-blue-500">
                         {speedVisible ? 'Estimated' : 'Unknown'}
@@ -416,52 +399,24 @@ function CompetitionIntel({ aiHorses, playerHorses, raceDistance, getDistanceExp
                     </div>
                     
                     {/* Distance Intel */}
-                    <div className="text-center p-2 bg-green-50 rounded-lg">
-                      <div className="text-xs font-semibold text-green-600 mb-1">DISTANCE</div>
-                      {distanceVisible ? (() => {
-                        const { calculateDistanceFit } = window.HorseSystem;
-                        const fit = calculateDistanceFit(horse, raceDistance);
-                        const expertise = getDistanceExpertise(fit);
-                        return (
-                          <div>
-                            <div className="text-lg">{expertise.icon}</div>
-                            <div className="text-xs text-green-600 font-medium">{expertise.text}</div>
-                          </div>
-                        );
-                      })() : (
-                        <div>
-                          <div className="text-lg text-gray-400">❓</div>
-                          <div className="text-xs text-gray-500">Unknown</div>
+                    {distanceVisible ? (() => {
+                      const { calculateDistanceFit } = window.HorseSystem;
+                      const fit = calculateDistanceFit(horse, raceDistance);
+                      const expertise = getDistanceExpertise(fit);
+                      return (
+                        <div className={`text-center p-2 rounded-lg ${expertise.bgColor}`}>
+                          <div className={`text-xs font-semibold mb-1 ${expertise.color}`}>DISTANCE</div>
+                          <div className="text-lg">{expertise.icon}</div>
+                          <div className={`text-xs font-medium ${expertise.color}`}>{expertise.text}</div>
                         </div>
-                      )}
-                    </div>
-                    
-                    {/* Traits Intel */}
-                    <div className="text-center p-2 bg-purple-50 rounded-lg">
-                      <div className="text-xs font-semibold text-purple-600 mb-1">STYLE</div>
-                      {traitsVisible ? (
-                        horse.traits.length > 0 ? (
-                          <div>
-                            <div className="text-lg">
-                              {TRAIT_DEFINITIONS[horse.traits[0]]?.icon || '🏇'}
-                            </div>
-                            <div className="text-xs text-purple-600 font-medium">
-                              {horse.traits.length} trait{horse.traits.length !== 1 ? 's' : ''}
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <div className="text-lg text-gray-500">○</div>
-                            <div className="text-xs text-gray-500">Basic</div>
-                          </div>
-                        )
-                      ) : (
-                        <div>
-                          <div className="text-lg text-gray-400">❓</div>
-                          <div className="text-xs text-gray-500">Unknown</div>
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })() : (
+                      <div className="text-center p-2 bg-gray-50 rounded-lg">
+                        <div className="text-xs font-semibold text-gray-600 mb-1">DISTANCE</div>
+                        <div className="text-lg text-gray-400">❓</div>
+                        <div className="text-xs text-gray-500">Unknown</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -473,131 +428,28 @@ function CompetitionIntel({ aiHorses, playerHorses, raceDistance, getDistanceExp
   );
 }
 
-// Entry fee selector
-function EntryFeeSelector({ fees, selectedFee, onSelectFee, wallet, raceNumber }) {
-  const { calculatePrizePool } = window.RaceSystem;
-  
-  return (
-    <div className="mb-6">
-      <h3 className="text-base sm:text-lg font-bold mb-3">💰 Select Entry Fee & View Prize Money:</h3>
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4 text-sm">
-        <div className="flex items-center mb-1">
-          <span className="text-blue-600 mr-2">💡</span>
-          <span className="font-medium text-blue-800">How it works:</span>
-        </div>
-        <div className="text-blue-700 ml-6">
-          Pay the entry fee to race. Finish 1st, 2nd, or 3rd to win prize money!
-        </div>
-      </div>
-      {/* Mobile - Stack vertically with larger touch targets */}
-      <div className="flex flex-col space-y-3 sm:hidden">
-        {fees.map((fee, index) => {
-          const prizePool = calculatePrizePool(fee);
-          return (
-            <button
-              key={index}
-              onClick={() => onSelectFee(fee)}
-              disabled={fee.amount > wallet}
-              className={`p-4 rounded-lg border-2 transition-all min-h-[80px] ${
-                selectedFee?.amount === fee.amount
-                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200 scale-[1.02]'
-                  : fee.amount > wallet
-                  ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
-                  : 'border-gray-300 hover:border-blue-400 hover:bg-blue-25 active:scale-[0.98]'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-left">
-                  <div className="font-bold text-xl text-gray-800">
-                    ${fee.amount}
-                  </div>
-                  <div className="text-sm text-gray-600">Entry Fee</div>
-                </div>
-                
-                <div className="text-right space-y-1 text-sm">
-                  <div className="flex items-center justify-end space-x-2">
-                    <span className="text-yellow-500">🥇</span>
-                    <span className="font-bold text-green-600">${prizePool.first}</span>
-                  </div>
-                  <div className="flex items-center justify-end space-x-2">
-                    <span className="text-gray-400">🥈</span>
-                    <span className="font-semibold text-gray-600">${prizePool.second}</span>
-                  </div>
-                  <div className="flex items-center justify-end space-x-2">
-                    <span className="text-orange-400">🥉</span>
-                    <span className="font-semibold text-orange-600">${prizePool.third}</span>
-                  </div>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      
-      {/* Desktop - Original grid */}
-      <div className="hidden sm:grid grid-cols-3 gap-4">
-        {fees.map((fee, index) => {
-          const prizePool = calculatePrizePool(fee);
-          return (
-            <button
-              key={index}
-              onClick={() => onSelectFee(fee)}
-              disabled={fee.amount > wallet}
-              className={`p-4 rounded-lg border-2 transition-all ${
-                selectedFee?.amount === fee.amount
-                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
-                  : fee.amount > wallet
-                  ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
-                  : 'border-gray-300 hover:border-blue-400 hover:bg-blue-25'
-              }`}
-            >
-              <div className="font-bold text-lg text-gray-800">
-                ${fee.amount}
-              </div>
-              <div className="space-y-1 text-xs">
-                <div className="flex justify-between">
-                  <span>🥇 1st:</span>
-                  <span className="font-bold text-green-600">${prizePool.first}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>🥈 2nd:</span>
-                  <span className="font-bold text-gray-600">${prizePool.second}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>🥉 3rd:</span>
-                  <span className="font-bold text-orange-600">${prizePool.third}</span>
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-3 text-xs text-gray-600 text-center">
-        💡 Tip: Higher entry fees mean bigger prize pools but more risk!
-      </div>
-    </div>
-  );
-}
 
 // Consistent Horse Card (matches opponent format)
-function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExpertise, isPlayerHorse = false }) {
+function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExpertise, showBestDistance = false, getBestDistance }) {
   const { TRAIT_DEFINITIONS } = window.GameConfig;
   const { calculateDistanceFit } = window.HorseSystem;
   
   const distanceFit = calculateDistanceFit(horse, raceDistance);
   const expertise = getDistanceExpertise(distanceFit);
   
-  // Calculate performance assessment (similar to threat assessment for opponents)
-  const getPerformanceAssessment = (speed, booster) => {
-    const combined = speed + (booster * 0.5);
-    if (combined >= 85) return { level: 'ELITE', color: 'bg-purple-500 text-white', icon: '⭐', advice: 'Top performer' };
-    if (combined >= 70) return { level: 'STRONG', color: 'bg-blue-500 text-white', icon: '💪', advice: 'Solid choice' };
-    if (combined >= 55) return { level: 'GOOD', color: 'bg-green-500 text-white', icon: '✓', advice: 'Reliable option' };
-    if (combined >= 40) return { level: 'AVERAGE', color: 'bg-yellow-500 text-white', icon: '○', advice: 'Decent backup' };
-    return { level: 'DEVELOPING', color: 'bg-gray-500 text-white', icon: '△', advice: 'Needs improvement' };
-  };
+  // Get best distance if requested
+  const bestDistance = showBestDistance && getBestDistance ? getBestDistance(horse) : null;
   
-  const performance = getPerformanceAssessment(horse.speed, horse.boosterPower);
+  // Clear new flag after first display
+  useEffect(() => {
+    if (horse.isNew) {
+      // Clear the new flag after a short delay
+      const timer = setTimeout(() => {
+        horse.isNew = false;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [horse]);
   
   return (
     <div
@@ -605,69 +457,76 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
       className={`cursor-pointer transition-all hover:shadow-lg ${
         isSelected 
           ? 'bg-white border-2 border-blue-500 rounded-xl p-4 shadow-lg ring-2 ring-blue-200' 
-          : 'bg-white border-2 border-gray-200 rounded-xl p-4'
+          : horse.isNew
+            ? 'bg-white border-2 border-yellow-400 rounded-xl p-4 shadow-lg ring-2 ring-yellow-200'
+            : 'bg-white border-2 border-gray-200 rounded-xl p-4'
       }`}
     >
-      {/* Header with Performance Assessment */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center space-x-3">
           <HorseIcon color={horse.color} size="md" />
           <div>
-            <div className="font-bold text-lg text-gray-900">{horse.name}</div>
-            <div className="text-sm text-gray-600">Your Champion</div>
+            <div className="flex items-center space-x-2">
+              <span className="font-bold text-lg text-gray-900">{horse.name}</span>
+              {horse.isNew && (
+                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
+                  NEW
+                </span>
+              )}
+              {/* Trait Pills */}
+              <div className="flex space-x-1">
+                {horse.traits.map(trait => {
+                  const traitDef = TRAIT_DEFINITIONS[trait];
+                  const isPositive = !['temperamental', 'lazy', 'nervous', 'brittle'].includes(trait);
+                  const colorClass = isPositive 
+                    ? 'bg-green-100 text-green-700 border-green-200' 
+                    : 'bg-red-100 text-red-700 border-red-200';
+                  
+                  return (
+                    <span 
+                      key={trait}
+                      className={`px-2 py-0.5 text-xs font-medium rounded-full border ${colorClass}`}
+                    >
+                      {traitDef.name}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className={`px-3 py-1 rounded-full font-bold text-sm ${performance.color}`}>
-          <span className="mr-1">{performance.icon}</span>
-          {performance.level}
         </div>
       </div>
       
-      {/* Performance Summary */}
-      <div className="bg-gray-50 rounded-lg p-3 mb-3">
-        <div className="text-sm font-medium text-gray-700">
-          📊 Assessment: {performance.advice}
-        </div>
-        {horse.fatigue > 0 && (
-          <div className={`text-sm mt-1 ${horse.fatigue > 80 ? 'text-red-600' : 'text-yellow-600'}`}>
+      {/* Fatigue Warning */}
+      {horse.fatigue > 0 && (
+        <div className="mb-3">
+          <div className={`text-sm ${horse.fatigue > 80 ? 'text-red-600' : 'text-yellow-600'}`}>
             ⚠️ {horse.fatigue > 80 ? 'Very tired - reduced performance' : 'Tired - slight impact'}
           </div>
-        )}
-      </div>
+        </div>
+      )}
       
-      {/* Stats Grid (matches opponent format) */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 gap-3">
         {/* Speed */}
         <div className="text-center p-2 bg-blue-50 rounded-lg">
           <div className="text-xs font-semibold text-blue-600 mb-1">SPEED</div>
           <div className="font-bold text-lg text-blue-700">{horse.speed}</div>
-          <div className="text-xs text-blue-500">Actual</div>
         </div>
         
         {/* Distance Match */}
-        <div className="text-center p-2 bg-green-50 rounded-lg">
-          <div className="text-xs font-semibold text-green-600 mb-1">DISTANCE</div>
-          <div className="text-lg">{expertise.icon}</div>
-          <div className="text-xs text-green-600 font-medium">{expertise.text}</div>
-        </div>
-        
-        {/* Traits/Style */}
-        <div className="text-center p-2 bg-purple-50 rounded-lg">
-          <div className="text-xs font-semibold text-purple-600 mb-1">STYLE</div>
-          {horse.traits.length > 0 ? (
-            <div>
-              <div className="text-lg">
-                {TRAIT_DEFINITIONS[horse.traits[0]]?.icon || '🏇'}
-              </div>
-              <div className="text-xs text-purple-600 font-medium">
-                {horse.traits.length} trait{horse.traits.length !== 1 ? 's' : ''}
-              </div>
-            </div>
+        <div className={`text-center p-2 rounded-lg ${showBestDistance ? 'bg-purple-50' : expertise.bgColor}`}>
+          <div className={`text-xs font-semibold mb-1 ${showBestDistance ? 'text-purple-600' : expertise.color}`}>
+            {showBestDistance ? 'BEST AT' : 'DISTANCE'}
+          </div>
+          {showBestDistance ? (
+            <div className="font-bold text-lg text-purple-700">{bestDistance}m</div>
           ) : (
-            <div>
-              <div className="text-lg text-gray-500">○</div>
-              <div className="text-xs text-gray-500">Basic</div>
-            </div>
+            <>
+              <div className="text-lg">{expertise.icon}</div>
+              <div className={`text-xs font-medium ${expertise.color}`}>{expertise.text}</div>
+            </>
           )}
         </div>
       </div>
@@ -683,15 +542,14 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
 }
 
 // Race track component
-function RaceTrack({ horses, racePositions, selectedHorse, entryFee }) {
-  const trackLength = 100;
+function RaceTrack({ horses, racePositions, selectedHorse }) {
   
   return (
     <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg">
       <h2 className="text-xl sm:text-2xl font-bold mb-4">🏁 Race in Progress! 🏁</h2>
       
       <div className="space-y-3">
-        {horses.map((horse, index) => {
+        {horses.map((horse) => {
           const position = racePositions[horse.id]?.position || 0;
           const phaseInfo = racePositions[horse.id]?.phaseInfo;
           const finishPlace = racePositions[horse.id]?.finishPlace;
@@ -810,7 +668,7 @@ function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExperti
       <h2 className="text-xl sm:text-2xl font-bold mb-4">{title}</h2>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-4">
         <div className="space-y-2">
-          {[...horses].sort((a, b) => a.distancePreference - b.distancePreference).map(horse => {
+          {sortHorsesByPerformance(horses).map(horse => {
             const distanceFit = calculateDistanceFit(horse, raceDistance);
             const expertise = getDistanceExpertise(distanceFit);
             
@@ -937,14 +795,88 @@ function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExperti
   );
 }
 
-// Breeding interface component
-function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanceExpertise }) {
-  const [parent1, setParent1] = useState(null);
-  const [parent2, setParent2] = useState(null);
-  const { TRAIT_DEFINITIONS } = window.GameConfig;
-  const { calculateDistanceFit } = window.HorseSystem;
+// Horse buying interface component
+function HorseBuyingInterface({ horses, onPurchase, onCancel, getDistanceExpertise, getBestDistance }) {
+  const [selectedHorse, setSelectedHorse] = useState(null);
   
-  const canBreed = parent1 && parent2 && parent1.id !== parent2.id;
+  return (
+    <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg">
+      <h2 className="text-2xl font-bold mb-4 text-center">🛒 Buy New Horse</h2>
+      
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-4 mb-6 border border-green-200">
+        <div className="text-center mb-2">
+          <span className="text-lg font-bold text-gray-800">
+            💰 Expand Your Stable
+          </span>
+        </div>
+        <div className="text-sm text-gray-600 text-center">
+          Choose a specialized horse to add to your stable. Each horse is optimized for different race distances!
+        </div>
+      </div>
+
+      <div className="space-y-4 mb-6">
+        {horses.map(horse => (
+          <div
+            key={horse.id}
+            onClick={() => setSelectedHorse(horse)}
+            className={`cursor-pointer transition-all ${
+              selectedHorse?.id === horse.id
+                ? 'opacity-100'
+                : 'opacity-80 hover:opacity-100'
+            }`}
+          >
+            <HorseCard
+              horse={horse}
+              isSelected={selectedHorse?.id === horse.id}
+              onSelect={() => setSelectedHorse(horse)}
+              raceDistance={1600} // Default distance for display
+              getDistanceExpertise={getDistanceExpertise}
+              showBestDistance={true}
+              getBestDistance={getBestDistance}
+              isPlayerHorse={false}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <button
+          onClick={onCancel}
+          className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-bold"
+        >
+          Skip Purchase
+        </button>
+        <button
+          onClick={() => selectedHorse && onPurchase(selectedHorse)}
+          disabled={!selectedHorse}
+          className={`px-6 py-3 rounded-lg transition-colors font-bold flex-1 ${
+            selectedHorse
+              ? 'bg-green-500 text-white hover:bg-green-600'
+              : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          {selectedHorse ? '🛒 Purchase Horse' : 'Select a Horse'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Breeding interface component
+function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanceExpertise, getBestDistance }) {
+  const [selectedHorses, setSelectedHorses] = useState([]);
+  
+  const handleHorseClick = (horse) => {
+    if (selectedHorses.find(h => h.id === horse.id)) {
+      // Unselect if already selected
+      setSelectedHorses(selectedHorses.filter(h => h.id !== horse.id));
+    } else if (selectedHorses.length < 2) {
+      // Select if less than 2 selected
+      setSelectedHorses([...selectedHorses, horse]);
+    }
+  };
+  
+  const canBreed = selectedHorses.length === 2;
   const raceType = raceDistance === 1000 ? 'Sprint' : raceDistance === 1800 ? 'Medium' : 'Endurance';
   
   return (
@@ -959,78 +891,55 @@ function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanc
           </span>
         </div>
         <div className="text-sm text-gray-600 text-center">
-          Create an offspring by selecting two parent horses. Choose parents with complementary strengths!
+          Select two parent horses to create an offspring. Click a selected horse to unselect it.
         </div>
+        {selectedHorses.length > 0 && (
+          <div className="mt-2 text-center">
+            <span className="text-sm font-medium text-blue-600">
+              Selected: {selectedHorses.map(h => h.name).join(' & ')}
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Parent Selection */}
-      <div className="space-y-6">
-        {/* First Parent */}
-        <div>
-          <h3 className="text-lg font-bold mb-3 text-blue-600">👨 Select First Parent</h3>
-          <div className="space-y-3">
-            {horses.map(horse => {
-              const isSelected = parent1?.id === horse.id;
-              const isDisabled = parent2?.id === horse.id;
-              
-              return (
-                <div
-                  key={horse.id}
-                  onClick={() => !isDisabled && setParent1(horse)}
-                  className={`cursor-pointer transition-all ${
-                    isSelected 
-                      ? 'opacity-100' 
-                      : isDisabled 
-                        ? 'opacity-40 cursor-not-allowed'
-                        : 'opacity-80 hover:opacity-100'
-                  }`}
-                >
+      {/* Horse Selection */}
+      <div>
+        <h3 className="text-lg font-bold mb-3 text-center">Select Two Parents</h3>
+        <div className="space-y-3">
+          {[...horses].sort((a, b) => b.speed - a.speed).map(horse => {
+            const isSelected = selectedHorses.find(h => h.id === horse.id);
+            const selectionNumber = isSelected ? selectedHorses.findIndex(h => h.id === horse.id) + 1 : null;
+            
+            return (
+              <div
+                key={horse.id}
+                onClick={() => handleHorseClick(horse)}
+                className={`cursor-pointer transition-all ${
+                  isSelected 
+                    ? 'opacity-100' 
+                    : 'opacity-80 hover:opacity-100'
+                }`}
+              >
+                <div className="relative">
+                  {isSelected && (
+                    <div className="absolute -top-2 -right-2 z-10 bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
+                      {selectionNumber}
+                    </div>
+                  )}
                   <HorseCard
                     horse={horse}
                     isSelected={isSelected}
-                    onSelect={() => !isDisabled && setParent1(horse)}
+                    onSelect={() => handleHorseClick(horse)}
                     raceDistance={raceDistance}
                     getDistanceExpertise={getDistanceExpertise}
+                    showBestDistance={true}
+                    getBestDistance={getBestDistance}
                     isPlayerHorse={true}
                   />
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Second Parent */}
-        <div>
-          <h3 className="text-lg font-bold mb-3 text-pink-600">👩 Select Second Parent</h3>
-          <div className="space-y-3">
-            {horses.map(horse => {
-              const isSelected = parent2?.id === horse.id;
-              const isDisabled = parent1?.id === horse.id;
-              
-              return (
-                <div
-                  key={horse.id}
-                  onClick={() => !isDisabled && setParent2(horse)}
-                  className={`cursor-pointer transition-all ${
-                    isSelected 
-                      ? 'opacity-100' 
-                      : isDisabled 
-                        ? 'opacity-40 cursor-not-allowed'
-                        : 'opacity-80 hover:opacity-100'
-                  }`}
-                >
-                  <HorseCard
-                    horse={horse}
-                    isSelected={isSelected}
-                    onSelect={() => !isDisabled && setParent2(horse)}
-                    raceDistance={raceDistance}
-                    getDistanceExpertise={getDistanceExpertise}
-                    isPlayerHorse={true}
-                  />
-                </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -1043,7 +952,7 @@ function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanc
           Skip Breeding
         </button>
         <button
-          onClick={() => canBreed && onBreed(parent1, parent2)}
+          onClick={() => canBreed && onBreed(selectedHorses[0], selectedHorses[1])}
           disabled={!canBreed}
           className={`px-6 py-3 rounded-lg transition-colors font-bold flex-1 ${
             canBreed 
@@ -1051,7 +960,7 @@ function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanc
               : 'bg-gray-400 text-gray-600 cursor-not-allowed'
           }`}
         >
-          {canBreed ? '🐴 Create Offspring' : 'Select Two Different Parents'}
+          {canBreed ? '🐴 Create Offspring' : 'Select Two Parents'}
         </button>
       </div>
     </div>
@@ -1063,9 +972,9 @@ function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanc
 // =============================================================================
 
 function StableRacingGame() {
-  const { GAME_CONSTANTS, GAME_PHASES, RACE_DISTANCES, randomChoice } = window.GameConfig;
+  const { GAME_CONSTANTS, GAME_PHASES, RACE_DISTANCES, randomBetween } = window.GameConfig;
   const { generateHorse, breedHorses } = window.HorseSystem;
-  const { generateScoutReports, calculateHorseReputation } = window.ScoutSystem;
+  const { generateScoutReports } = window.ScoutSystem;
   const { simulateRace, processRaceResults, calculatePrizePool, processPlayerWinnings } = window.RaceSystem;
   const { generateUpgradeOptions, applyUpgradeToHorse, applyUpgradeToAllHorses, getComebackInfo } = window.UpgradeSystem;
 
@@ -1079,15 +988,13 @@ function StableRacingGame() {
   const [raceResults, setRaceResults] = useState([]);
   const [raceNumber, setRaceNumber] = useState(1);
   const [racePositions, setRacePositions] = useState({});
-  const [isRacing, setIsRacing] = useState(false);
   const [upgradeOptions, setUpgradeOptions] = useState([]);
-  const [raceDistance, setRaceDistance] = useState(1200);
-  const [nextRaceDistance, setNextRaceDistance] = useState(null);
+  const [raceDistance, setRaceDistance] = useState(1000);
+  const [raceDistanceIndex, setRaceDistanceIndex] = useState(0);
   const [selectedBoost, setSelectedBoost] = useState(null);
   const [pendingUpgrade, setPendingUpgrade] = useState(null);
   const [lastRaceResult, setLastRaceResult] = useState(null);
   const [horseBuyingOptions, setHorseBuyingOptions] = useState([]);
-  const [scoutReports, setScoutReports] = useState({});
 
   // === EFFECTS ===
   
@@ -1103,11 +1010,24 @@ function StableRacingGame() {
     const minBet = Math.floor(10 * Math.pow(GAME_CONSTANTS.MIN_ENTRY_MULTIPLIER, raceNumber - 1));
     const maxAllowed = Math.min(wallet, 200);
     
-    return [
+    const fees = [
       { amount: Math.min(minBet, maxAllowed), multiplier: 1, label: 'Min' },
       { amount: Math.min(Math.floor(minBet * 2.5), maxAllowed), multiplier: 2, label: 'Med' },
       { amount: Math.min(Math.floor(minBet * 5), maxAllowed), multiplier: 3, label: 'Max' }
     ].filter(fee => fee.amount <= wallet && fee.amount > 0);
+    
+    // Remove duplicates by amount (keep the one with higher multiplier)
+    const uniqueFees = [];
+    const seenAmounts = new Set();
+    
+    for (const fee of fees.reverse()) { // Reverse to keep higher multipliers
+      if (!seenAmounts.has(fee.amount)) {
+        uniqueFees.unshift(fee); // Add to beginning to maintain original order
+        seenAmounts.add(fee.amount);
+      }
+    }
+    
+    return uniqueFees;
   }, [raceNumber, wallet]);
 
   // Auto-select minimum fee if available and none selected
@@ -1149,12 +1069,31 @@ function StableRacingGame() {
   
   // Distance expertise calculation - used for all horses
   const getDistanceExpertise = (fit) => {
-    if (fit >= 0.95) return { text: 'Master (5)', color: 'text-purple-600', bgColor: 'bg-purple-50', icon: '👑' };
-    if (fit >= 0.85) return { text: 'Expert (4)', color: 'text-green-600', bgColor: 'bg-green-50', icon: '⭐' };
-    if (fit >= 0.70) return { text: 'Skilled (3)', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: '💪' };
-    if (fit >= 0.55) return { text: 'Decent (2)', color: 'text-yellow-600', bgColor: 'bg-yellow-50', icon: '👍' };
-    if (fit >= 0.40) return { text: 'Learning (1)', color: 'text-orange-600', bgColor: 'bg-orange-50', icon: '📚' };
-    return { text: 'Rookie (0)', color: 'text-red-600', bgColor: 'bg-red-50', icon: '🎯' };
+    if (fit >= 0.95) return { text: 'Master', color: 'text-green-600', bgColor: 'bg-green-50', icon: '👑' };
+    if (fit >= 0.85) return { text: 'Expert', color: 'text-green-600', bgColor: 'bg-green-50', icon: '⭐' };
+    if (fit >= 0.70) return { text: 'Skilled', color: 'text-gray-600', bgColor: 'bg-gray-50', icon: '💪' };
+    if (fit >= 0.55) return { text: 'Decent', color: 'text-gray-600', bgColor: 'bg-gray-50', icon: '👍' };
+    if (fit >= 0.40) return { text: 'Learning', color: 'text-red-600', bgColor: 'bg-red-50', icon: '📚' };
+    return { text: 'Rookie', color: 'text-red-600', bgColor: 'bg-red-50', icon: '🎯' };
+  };
+  
+  // Find the best distance for a horse
+  const getBestDistance = (horse) => {
+    const { calculateDistanceFit } = window.HorseSystem;
+    const distances = [1000, 1800, 2400];
+    
+    let bestDistance = distances[0];
+    let bestFit = calculateDistanceFit(horse, distances[0]);
+    
+    for (const distance of distances) {
+      const fit = calculateDistanceFit(horse, distance);
+      if (fit > bestFit) {
+        bestFit = fit;
+        bestDistance = distance;
+      }
+    }
+    
+    return bestDistance;
   };
 
   // === RACE MANAGEMENT ===
@@ -1167,10 +1106,6 @@ function StableRacingGame() {
   }, [playerHorses]);
 
   const generateNewRace = useCallback(() => {
-    // Use the pre-generated next race distance if available, otherwise generate new
-    const newDistance = nextRaceDistance || randomChoice(RACE_DISTANCES);
-    setRaceDistance(newDistance);
-    
     // Find player's best horse speed for AI scaling
     const playerBestSpeed = playerHorses.length > 0 
       ? Math.max(...playerHorses.map(h => h.speed))
@@ -1183,9 +1118,8 @@ function StableRacingGame() {
     setAiHorses(newAiHorses);
     
     // Generate scout reports
-    const reports = generateScoutReports(newAiHorses, playerHorses, newDistance);
-    setScoutReports(reports);
-  }, [raceNumber, playerHorses, nextRaceDistance]);
+    generateScoutReports(newAiHorses, playerHorses, raceDistance);
+  }, [raceNumber, playerHorses, raceDistance]);
 
   // Start a race
   const startRace = useCallback(() => {
@@ -1194,7 +1128,6 @@ function StableRacingGame() {
     // Deduct entry fee
     setWallet(prev => prev - selectedEntryFee.amount);
     setGamePhase(GAME_PHASES.RACING);
-    setIsRacing(true);
     
     // Add fatigue to selected horse
     setPlayerHorses(prev => prev.map(horse => 
@@ -1229,7 +1162,6 @@ function StableRacingGame() {
     
     setLastRaceResult(playerResult);
     setSelectedBoost(null);
-    setIsRacing(false);
     setGamePhase(GAME_PHASES.POST_RACE);
   }, [selectedHorse, prizePool]);
 
@@ -1242,8 +1174,7 @@ function StableRacingGame() {
       setUpgradeOptions(options);
       
       // Generate next race distance for upgrade/breeding decisions
-      const nextDistance = randomChoice(RACE_DISTANCES);
-      setNextRaceDistance(nextDistance);
+      // Next distance is already determined by the sequence
     }
   }, [gamePhase, raceNumber, wallet]);
 
@@ -1273,7 +1204,7 @@ function StableRacingGame() {
     }
     
     proceedToNextRace();
-  }, [raceNumber]);
+  }, [generateHorseBuyingOptions, proceedToNextRace]);
 
   // Apply upgrade to specific horse
   const applyUpgradeToSpecificHorse = useCallback((horse) => {
@@ -1285,13 +1216,14 @@ function StableRacingGame() {
     
     setPendingUpgrade(null);
     proceedToNextRace();
-  }, [pendingUpgrade]);
+  }, [pendingUpgrade, proceedToNextRace]);
 
   // === BREEDING SYSTEM ===
   
   // Handle horse breeding
   const handleBreeding = useCallback((parent1, parent2) => {
     const offspring = breedHorses(parent1, parent2);
+    offspring.isNew = true; // Mark as new
     setPlayerHorses(prev => [...prev, offspring]);
     proceedToNextRace();
   }, []);
@@ -1301,7 +1233,8 @@ function StableRacingGame() {
     // Add the purchased horse to stable
     const purchasedHorse = {
       ...horse,
-      traits: horse.traits // Keep the traits (they were hidden during selection)
+      traits: horse.traits, // Keep the traits (they were hidden during selection)
+      isNew: true // Mark as new
     };
     
     setPlayerHorses(prev => [...prev, purchasedHorse]);
@@ -1313,19 +1246,44 @@ function StableRacingGame() {
   // Proceed to next race
   const proceedToNextRace = useCallback(() => {
     setRaceNumber(prev => prev + 1);
-    generateNewRace();
-    setNextRaceDistance(null); // Clear the pre-generated distance after using it
+    
+    // Advance race distance index first
+    setRaceDistanceIndex(prevIndex => {
+      const newIndex = (prevIndex + 1) % RACE_DISTANCES.length;
+      const newDistance = RACE_DISTANCES[newIndex];
+      setRaceDistance(newDistance);
+      
+      // Generate new race with the new distance
+      setTimeout(() => {
+        // Find player's best horse speed for AI scaling
+        const playerBestSpeed = playerHorses.length > 0 
+          ? Math.max(...playerHorses.map(h => h.speed))
+          : GAME_CONSTANTS.BASE_SPEED;
+        
+        // Generate AI horses with player-relative scaling
+        const newAiHorses = Array.from({ length: GAME_CONSTANTS.AI_HORSES_COUNT }, () => 
+          generateHorse(false, raceNumber + 1, null, playerBestSpeed)
+        );
+        setAiHorses(newAiHorses);
+        
+        // Generate scout reports
+        generateScoutReports(newAiHorses, playerHorses, newDistance);
+      }, 0);
+      
+      return newIndex;
+    });
+    
     setGamePhase(GAME_PHASES.HORSE_SELECTION);
     setRaceResults([]);
     setRacePositions({});
     setSelectedEntryFee(null);
-  }, [generateNewRace]);
+  }, [playerHorses, raceNumber]);
 
   // Restart entire game
   const restartGame = useCallback(() => {
     setWallet(GAME_CONSTANTS.INITIAL_WALLET);
     setRaceNumber(1);
-    setGamePhase(GAME_PHASES.GAME_GUIDE);
+    setGamePhase(GAME_PHASES.HORSE_SELECTION);
     setRaceResults([]);
     setRacePositions({});
     setSelectedEntryFee(null);
@@ -1390,7 +1348,7 @@ function StableRacingGame() {
                 >
                   <option value="">Select Fee</option>
                   {entryFees.map(fee => (
-                    <option key={fee.amount} value={fee.amount}>
+                    <option key={`${fee.amount}-${fee.multiplier}`} value={fee.amount}>
                       ${fee.amount}
                     </option>
                   ))}
@@ -1472,7 +1430,6 @@ function StableRacingGame() {
             horses={[selectedHorse, ...aiHorses]}
             racePositions={racePositions}
             selectedHorse={selectedHorse}
-            entryFee={selectedEntryFee}
           />
         )}
 
@@ -1482,7 +1439,7 @@ function StableRacingGame() {
             horses={playerHorses}
             onSelect={applyUpgradeToSpecificHorse}
             title={`Select horse for: ${pendingUpgrade?.name}`}
-            raceDistance={nextRaceDistance || raceDistance}
+            raceDistance={RACE_DISTANCES[raceDistanceIndex]}
             getDistanceExpertise={getDistanceExpertise}
           />
         )}
@@ -1493,8 +1450,9 @@ function StableRacingGame() {
             horses={playerHorses}
             onBreed={handleBreeding}
             onCancel={proceedToNextRace}
-            raceDistance={nextRaceDistance || raceDistance}
+            raceDistance={RACE_DISTANCES[raceDistanceIndex]}
             getDistanceExpertise={getDistanceExpertise}
+            getBestDistance={getBestDistance}
           />
         )}
 
@@ -1505,6 +1463,7 @@ function StableRacingGame() {
             onPurchase={handleHorsePurchase}
             onCancel={proceedToNextRace}
             getDistanceExpertise={getDistanceExpertise}
+            getBestDistance={getBestDistance}
           />
         )}
 
@@ -1519,9 +1478,9 @@ function StableRacingGame() {
               <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center justify-center space-x-2">
                   <span className="text-blue-600 font-semibold">🏁 Next Race:</span>
-                  <span className="text-blue-800 font-bold text-lg">{nextRaceDistance || raceDistance}m</span>
+                  <span className="text-blue-800 font-bold text-lg">{RACE_DISTANCES[raceDistanceIndex]}m</span>
                   <span className="text-blue-600">
-                    ({(nextRaceDistance || raceDistance) === 1000 ? 'Sprint' : (nextRaceDistance || raceDistance) === 1800 ? 'Medium Distance' : 'Endurance'})
+                    ({RACE_DISTANCES[raceDistanceIndex] === 1000 ? 'Sprint' : RACE_DISTANCES[raceDistanceIndex] === 1800 ? 'Medium Distance' : 'Endurance'})
                   </span>
                 </div>
               </div>

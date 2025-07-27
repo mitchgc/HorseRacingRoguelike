@@ -28,8 +28,8 @@ const GAME_CONSTANTS = {
   // AI HORSE POWER CALIBRATION (Adjust AI difficulty here!)
   // =============================================================================
   AI_BASE_SPEED_BONUS: 0,      // Flat bonus to AI horse base speed (0 = same as player)
-  AI_SPEED_SCALING: 3,         // How much stronger AI gets per race (2 = +2 speed per race)
-  AI_PLAYER_RELATIVE: 0.2,     // How much AI scales with player's best horse (0.5 = 50% of difference)
+  AI_SPEED_SCALING: 4,         // How much stronger AI gets per race (2 = +2 speed per race)
+  AI_PLAYER_RELATIVE: 0.3,     // How much AI scales with player's best horse (0.5 = 50% of difference)
   AI_SPEED_VARIABILITY: 5,     // Random variation in AI horse speed (+/- this value)
   AI_TRAIT_CHANCE: 0.3,        // Chance for AI horses to get 2 traits (0.3 = 30%)
   AI_MIN_SPEED: 30,            // Minimum speed for AI horses
