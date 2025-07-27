@@ -143,22 +143,6 @@ function generateUpgradeOptions(raceNumber, wallet, playerHorsesCount) {
     requiresHorsePick: true
   });
   
-  // Permanent upgrades  
-  allOptions.push({
-    type: 'scoutUpgrade',
-    name: 'Intelligence Network',
-    desc: 'Permanently see all enemy stats (one-time upgrade)',
-    cost: 0,
-    isPermanent: true
-  });
-  
-  allOptions.push({
-    type: 'luckBoost',
-    name: 'Lucky Charm',
-    desc: '+5% chance for positive race events this race',
-    cost: 0,
-    temporary: true
-  });
   
   // Distance specialization
   allOptions.push({
@@ -211,7 +195,7 @@ function selectUpgradeOptions(allOptions, comebackBonus) {
   // If player is struggling, prioritize good upgrades
   if (comebackBonus > 1) {
     const goodOptions = allOptions.filter(opt => 
-      ['speed', 'veteran', 'miracleHorse', 'newTrait'].includes(opt.type) && opt.cost === 0
+      ['speed', 'veteran', 'miracleHorse', 'newTrait', 'addSprinter', 'addCloser', 'addVersatile', 'removeBadTrait', 'stableRest'].includes(opt.type) && opt.cost === 0
     );
     const otherOptions = allOptions.filter(opt => !goodOptions.includes(opt));
     
@@ -240,9 +224,10 @@ function selectUpgradeOptions(allOptions, comebackBonus) {
  * @param {Object} upgrade - The upgrade to apply
  * @param {Object} horse - The horse to upgrade
  * @param {Array} allHorses - All player horses (for reference)
+ * @param {number} raceDistance - Current race distance (optional)
  * @returns {Object} Updated horse object or null if upgrade doesn't apply to specific horses
  */
-function applyUpgradeToHorse(upgrade, horse, allHorses) {
+function applyUpgradeToHorse(upgrade, horse, allHorses, raceDistance = 1800) {
   const { clamp, randomChoice, TRAIT_DEFINITIONS } = window.GameConfig;
   
   switch (upgrade.type) {
@@ -308,11 +293,10 @@ function applyUpgradeToHorse(upgrade, horse, allHorses) {
       return horse;
       
     case 'optimizeDistance':
-      // This would need the current race distance passed in
-      // For now, we'll optimize for a middle distance (1800m)
+      // Optimize horse for the current race distance
       return {
         ...horse,
-        distancePreference: 1800
+        distancePreference: raceDistance
       };
       
     default:
@@ -332,13 +316,15 @@ function applyUpgradeToAllHorses(upgrade, horses) {
     case 'stableSpeed':
       return horses.map(horse => ({
         ...horse,
-        speed: Math.min(100, horse.speed + upgrade.value)
+        speed: Math.min(100, horse.speed + upgrade.value),
+        isUpgraded: true
       }));
       
     case 'stableRest':
       return horses.map(horse => ({
         ...horse,
-        fatigue: 0
+        fatigue: 0,
+        isUpgraded: true
       }));
       
     default:

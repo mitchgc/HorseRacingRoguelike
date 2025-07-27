@@ -197,7 +197,7 @@ function sortHorsesByPerformance(horses) {
 }
 
 // Tab-based Horse Selection Component  
-function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelectedHorse, raceDistance, getDistanceExpertise }) {
+function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelectedHorse, raceDistance, getDistanceExpertise, getBestDistance }) {
   const [activeTab, setActiveTab] = useState('stable');
   
   return (
@@ -241,6 +241,8 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
                       onSelect={() => setSelectedHorse(horse)}
                       raceDistance={raceDistance}
                       getDistanceExpertise={getDistanceExpertise}
+                      showBestDistance={true}
+                      getBestDistance={getBestDistance}
                       isPlayerHorse={true}
                     />
                   ))}
@@ -277,6 +279,8 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
                   onSelect={() => setSelectedHorse(horse)}
                   raceDistance={raceDistance}
                   getDistanceExpertise={getDistanceExpertise}
+                  showBestDistance={true}
+                  getBestDistance={getBestDistance}
                   isPlayerHorse={true}
                 />
               ))}
@@ -343,12 +347,13 @@ function CompetitionIntel({ aiHorses, raceDistance, getDistanceExpertise, isInTa
               return b.speed - a.speed;
             }).map(horse => {
               // Intelligence gathering (consistent based on horse ID)
-              const speedVisible = (horse.id * 1234) % 10 >= 4;
-              const traitsVisible = (horse.id * 5678) % 10 >= 3;
-              const distanceVisible = (horse.id * 9876) % 10 >= 5;
+              // Made "?" less common by making thresholds lower
+              const speedVisible = (horse.id * 1234) % 10 >= 2; // Was 4, now 2 (80% chance vs 60%)
+              const traitsVisible = (horse.id * 5678) % 10 >= 2; // Was 3, now 2 (80% chance vs 70%)
+              const distanceVisible = (horse.id * 9876) % 10 >= 3; // Was 5, now 3 (70% chance vs 50%)
               
-              // Consistent estimated speed (no random component)
-              const estimatedSpeed = speedVisible ? Math.floor(horse.speed * 0.9 + (horse.id % 10)) : null;
+              // Show exact speed when visible (removed inaccuracy)
+              const displaySpeed = speedVisible ? horse.speed : null;
               
               return (
                 <div key={horse.id} className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow">
@@ -391,10 +396,10 @@ function CompetitionIntel({ aiHorses, raceDistance, getDistanceExpertise, isInTa
                     <div className="text-center p-2 bg-blue-50 rounded-lg">
                       <div className="text-xs font-semibold text-blue-600 mb-1">SPEED</div>
                       <div className="font-bold text-lg text-blue-700">
-                        {speedVisible ? estimatedSpeed : '???'}
+                        {speedVisible ? displaySpeed : '???'}
                       </div>
                       <div className="text-xs text-blue-500">
-                        {speedVisible ? 'Estimated' : 'Unknown'}
+                        {speedVisible ? 'Confirmed' : 'Unknown'}
                       </div>
                     </div>
                     
@@ -440,12 +445,22 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
   // Get best distance if requested
   const bestDistance = showBestDistance && getBestDistance ? getBestDistance(horse) : null;
   
-  // Clear new flag after first display
+  // Clear new and upgraded flags after first display
   useEffect(() => {
     if (horse.isNew) {
       // Clear the new flag after a short delay
       const timer = setTimeout(() => {
         horse.isNew = false;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [horse]);
+  
+  useEffect(() => {
+    if (horse.isUpgraded) {
+      // Clear the upgraded flag after a short delay
+      const timer = setTimeout(() => {
+        horse.isUpgraded = false;
       }, 100);
       return () => clearTimeout(timer);
     }
@@ -459,7 +474,9 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
           ? 'bg-white border-2 border-blue-500 rounded-xl p-4 shadow-lg ring-2 ring-blue-200' 
           : horse.isNew
             ? 'bg-white border-2 border-yellow-400 rounded-xl p-4 shadow-lg ring-2 ring-yellow-200'
-            : 'bg-white border-2 border-gray-200 rounded-xl p-4'
+            : horse.isUpgraded
+              ? 'bg-white border-2 border-yellow-500 rounded-xl p-4 shadow-lg ring-2 ring-yellow-300'
+              : 'bg-white border-2 border-gray-200 rounded-xl p-4'
       }`}
     >
       {/* Header */}
@@ -472,6 +489,11 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
               {horse.isNew && (
                 <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
                   NEW
+                </span>
+              )}
+              {horse.isUpgraded && (
+                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-200 text-yellow-900 border border-yellow-400">
+                  UPGRADED
                 </span>
               )}
               {/* Trait Pills */}
@@ -659,144 +681,29 @@ function RaceTrack({ horses, racePositions, selectedHorse }) {
 }
 
 // Horse picker component
-function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExpertise }) {
-  const { TRAIT_DEFINITIONS } = window.GameConfig;
-  const { calculateDistanceFit } = window.HorseSystem;
-  
+function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExpertise, getBestDistance }) {
   return (
     <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg">
       <h2 className="text-xl sm:text-2xl font-bold mb-4">{title}</h2>
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-4">
-        <div className="space-y-2">
-          {sortHorsesByPerformance(horses).map(horse => {
-            const distanceFit = calculateDistanceFit(horse, raceDistance);
-            const expertise = getDistanceExpertise(distanceFit);
-            
-            return (
-              <div 
-                key={horse.id}
-                onClick={() => onSelect(horse)}
-                className="flex flex-col sm:flex-row p-3 sm:p-3 rounded-lg cursor-pointer transition-all bg-white hover:bg-blue-50 border-2 border-gray-200 hover:border-blue-500 active:border-blue-600 active:scale-[0.98]"
-              >
-                {/* Mobile Layout - Stacked */}
-                <div className="flex flex-col space-y-3 sm:hidden w-full">
-                  {/* Horse Header - Name, Icon, and Distance */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <HorseIcon color={horse.color} size="md" />
-                      <div className="flex flex-col">
-                        <span className="text-base font-bold text-blue-800">{horse.name}</span>
-                        {horse.fatigue > 0 && (
-                          <div className={`flex items-center space-x-1 text-xs ${horse.fatigue > 80 ? 'text-red-600' : horse.fatigue > 40 ? 'text-yellow-600' : 'text-orange-600'}`}>
-                            <span>😴</span>
-                            <span className="font-medium">Fatigue: {horse.fatigue}%</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className={`flex items-center space-x-1 rounded-full px-3 py-1 ${expertise.bgColor} ${expertise.color}`}>
-                      <span className="text-sm">{expertise.icon}</span>
-                      <span className="text-xs font-bold">{expertise.text}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Stats Row */}
-                  <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm">
-                        <span className="text-gray-600">Speed:</span>
-                        <span className="font-bold text-blue-700 ml-1">{horse.speed}</span>
-                      </div>
-                      <div className="text-sm">
-                        <span className="text-gray-600">Booster:</span>
-                        <span className="font-bold text-green-700 ml-1">{horse.boosterPower}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      {horse.traits.map(trait => (
-                        <span key={trait} className="text-base" title={TRAIT_DEFINITIONS[trait].name}>
-                          {TRAIT_DEFINITIONS[trait].icon}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Desktop Layout - Original Grid */}
-                <div className="hidden sm:grid grid-cols-4 gap-4 items-center w-full">
-                  {/* Horse Name and Icon */}
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <HorseIcon color={horse.color} size="sm" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-sm font-bold text-blue-800 truncate">{horse.name}</span>
-                      {horse.fatigue > 0 && (
-                        <div className={`flex items-center space-x-1 text-xs ${horse.fatigue > 80 ? 'text-red-600' : horse.fatigue > 40 ? 'text-yellow-600' : 'text-orange-600'}`}>
-                          <span>😴</span>
-                          <span className="font-medium">Fatigue: {horse.fatigue}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* STATS */}
-                  <div className="flex items-center justify-center">
-                    <div className="flex items-center space-x-2 bg-blue-50 rounded px-3 py-1">
-                      <div className="text-xs">
-                        <span className="text-gray-600">Speed:</span> <span className="font-bold text-blue-700">{horse.speed}</span>
-                      </div>
-                      <div className="text-xs">
-                        <span className="text-gray-600">Booster:</span> <span className="font-bold text-green-700">{horse.boosterPower}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* DISTANCE EXPERTISE */}
-                  <div className="flex items-center justify-center">
-                    <div 
-                      className={`flex items-center space-x-1 rounded px-2 py-1 cursor-help tooltip ${expertise.bgColor} ${expertise.color}`}
-                      data-tooltip={`Distance Preference: ${horse.distancePreference}m`}
-                    >
-                      <span className="text-sm">{expertise.icon}</span>
-                      <span className="text-xs font-medium">{expertise.text}</span>
-                    </div>
-                  </div>
-                  
-                  {/* TRAITS */}
-                  <div className="flex gap-1 flex-wrap justify-center min-w-0">
-                    {horse.traits.length > 0 ? (
-                      horse.traits.map(trait => {
-                        const traitDef = TRAIT_DEFINITIONS[trait];
-                        const isNegative = ['temperamental', 'lazy', 'nervous', 'brittle'].includes(trait);
-                        const traitColorClass = isNegative 
-                          ? 'bg-red-100 text-red-800 border border-red-200' 
-                          : 'bg-green-100 text-green-800 border border-green-200';
-                          
-                        return (
-                          <span 
-                            key={trait} 
-                            className={`${traitColorClass} px-1 py-0.5 rounded text-xs font-medium flex-shrink-0 cursor-help tooltip`}
-                            data-tooltip={`${traitDef.name}: ${traitDef.description} | Math Impact: ${traitDef.mathImpact}`}
-                          >
-                            {traitDef.icon} {traitDef.name}
-                          </span>
-                        );
-                      })
-                    ) : (
-                      <span className="text-xs text-gray-500 italic">No traits</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div className="space-y-3">
+        {sortHorsesByPerformance(horses).map(horse => (
+          <HorseCard 
+            key={horse.id}
+            horse={horse}
+            isSelected={false}
+            onSelect={() => onSelect(horse)}
+            raceDistance={raceDistance}
+            getDistanceExpertise={getDistanceExpertise}
+            showBestDistance={true}
+            getBestDistance={getBestDistance}
+          />
+        ))}
       </div>
     </div>
   );
 }
-
 // Horse buying interface component
-function HorseBuyingInterface({ horses, onPurchase, onCancel, getDistanceExpertise, getBestDistance }) {
+function HorseBuyingInterface({ horses, onPurchase, getDistanceExpertise, getBestDistance }) {
   const [selectedHorse, setSelectedHorse] = useState(null);
   
   return (
@@ -841,12 +748,6 @@ function HorseBuyingInterface({ horses, onPurchase, onCancel, getDistanceExperti
 
       <div className="flex flex-col sm:flex-row gap-3">
         <button
-          onClick={onCancel}
-          className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-bold"
-        >
-          Skip Purchase
-        </button>
-        <button
           onClick={() => selectedHorse && onPurchase(selectedHorse)}
           disabled={!selectedHorse}
           className={`px-6 py-3 rounded-lg transition-colors font-bold flex-1 ${
@@ -863,7 +764,7 @@ function HorseBuyingInterface({ horses, onPurchase, onCancel, getDistanceExperti
 }
 
 // Breeding interface component
-function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanceExpertise, getBestDistance }) {
+function BreedingInterface({ horses, onBreed, raceDistance, getDistanceExpertise, getBestDistance }) {
   const [selectedHorses, setSelectedHorses] = useState([]);
   
   const handleHorseClick = (horse) => {
@@ -945,12 +846,6 @@ function BreedingInterface({ horses, onBreed, onCancel, raceDistance, getDistanc
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 mt-6">
-        <button
-          onClick={onCancel}
-          className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-bold"
-        >
-          Skip Breeding
-        </button>
         <button
           onClick={() => canBreed && onBreed(selectedHorses[0], selectedHorses[1])}
           disabled={!canBreed}
@@ -1190,6 +1085,7 @@ function StableRacingGame() {
     switch (upgrade.type) {
       case 'stableSpeed':
       case 'stableConsistency':
+      case 'stableRest':
         setPlayerHorses(prev => applyUpgradeToAllHorses(upgrade, prev));
         break;
         
@@ -1211,12 +1107,12 @@ function StableRacingGame() {
     if (!pendingUpgrade) return;
     
     setPlayerHorses(prev => prev.map(h => 
-      h.id === horse.id ? applyUpgradeToHorse(pendingUpgrade, h, prev) : h
+      h.id === horse.id ? { ...applyUpgradeToHorse(pendingUpgrade, h, prev, raceDistance), isUpgraded: true } : h
     ));
     
     setPendingUpgrade(null);
     proceedToNextRace();
-  }, [pendingUpgrade, proceedToNextRace]);
+  }, [pendingUpgrade, proceedToNextRace, raceDistance]);
 
   // === BREEDING SYSTEM ===
   
@@ -1306,7 +1202,6 @@ function StableRacingGame() {
   const ActionBar = () => {
     if (gamePhase === GAME_PHASES.HORSE_SELECTION) {
       const canStart = selectedHorse && selectedEntryFee;
-      const raceType = raceDistance === 1000 ? 'Sprint' : raceDistance === 1800 ? 'Medium' : 'Endurance';
       
       return (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg z-40">
@@ -1450,6 +1345,7 @@ function StableRacingGame() {
               setSelectedHorse={setSelectedHorse}
               raceDistance={raceDistance}
               getDistanceExpertise={getDistanceExpertise}
+              getBestDistance={getBestDistance}
             />
           </div>
         )}
@@ -1471,6 +1367,7 @@ function StableRacingGame() {
             title={`Select horse for: ${pendingUpgrade?.name}`}
             raceDistance={RACE_DISTANCES[raceDistanceIndex]}
             getDistanceExpertise={getDistanceExpertise}
+            getBestDistance={getBestDistance}
           />
         )}
 
@@ -1479,7 +1376,6 @@ function StableRacingGame() {
           <BreedingInterface
             horses={playerHorses}
             onBreed={handleBreeding}
-            onCancel={proceedToNextRace}
             raceDistance={RACE_DISTANCES[raceDistanceIndex]}
             getDistanceExpertise={getDistanceExpertise}
             getBestDistance={getBestDistance}
@@ -1491,7 +1387,6 @@ function StableRacingGame() {
           <HorseBuyingInterface
             horses={horseBuyingOptions}
             onPurchase={handleHorsePurchase}
-            onCancel={proceedToNextRace}
             getDistanceExpertise={getDistanceExpertise}
             getBestDistance={getBestDistance}
           />
