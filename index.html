@@ -44,6 +44,63 @@
             animation: pulse-glow 0.8s ease-in-out infinite;
         }
         
+        /* Upgrade glow animation */
+        @keyframes upgrade-glow {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.8), 0 0 0 0 rgba(251, 191, 36, 0.4);
+            }
+            50% { 
+                box-shadow: 0 0 15px 5px rgba(251, 191, 36, 0.6), 0 0 30px 10px rgba(251, 191, 36, 0.3);
+            }
+            100% { 
+                box-shadow: 0 0 0 0 rgba(251, 191, 36, 0), 0 0 0 0 rgba(251, 191, 36, 0);
+            }
+        }
+        
+        .upgrade-glow {
+            animation: upgrade-glow 1.5s ease-out;
+        }
+        
+        /* New trait glow animation */
+        @keyframes trait-glow {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.8);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 10px 3px rgba(255, 215, 0, 0.6);
+                transform: scale(1.05);
+            }
+            100% { 
+                box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+                transform: scale(1);
+            }
+        }
+        
+        .trait-glow {
+            animation: trait-glow 1.5s ease-out;
+        }
+        
+        /* Speed increase glow animation */
+        @keyframes speed-glow {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.8);
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 8px 2px rgba(255, 215, 0, 0.6);
+                transform: scale(1.1);
+            }
+            100% { 
+                box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+                transform: scale(1);
+            }
+        }
+        
+        .speed-glow {
+            animation: speed-glow 1.5s ease-out;
+        }
+        
         @keyframes speed-streak {
             0% { transform: translateX(-100%) scaleX(0); }
             50% { transform: translateX(0%) scaleX(1); }

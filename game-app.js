@@ -31,22 +31,30 @@ function HorseIcon({ color = '#8B4513', size = 'md' }) {
 }
 
 // Header component
-function Header({ wallet, raceNumber, horsesCount, raceDistance }) {
-  const { GAME_CONSTANTS } = window.GameConfig;
+function Header({ wallet, raceNumber, horsesCount, raceDistance, gamePhase }) {
+  const { GAME_CONSTANTS, RACE_DISTANCES, GAME_PHASES } = window.GameConfig;
+  
+  // Calculate next race distance
+  const nextRaceIndex = (RACE_DISTANCES.indexOf(raceDistance) + 1) % RACE_DISTANCES.length;
+  const nextDistance = RACE_DISTANCES[nextRaceIndex];
+  
+  // Determine if we should show current or next race info
+  const isCurrentRace = gamePhase === GAME_PHASES.HORSE_SELECTION || gamePhase === GAME_PHASES.RACING;
+  const displayRaceNumber = isCurrentRace ? raceNumber : raceNumber + 1;
+  const displayDistance = isCurrentRace ? raceDistance : nextDistance;
+  const raceLabel = isCurrentRace ? "Current" : "Next";
   
   return (
-    <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6 mb-4 sm:mb-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-        <h1 className="text-xl sm:text-3xl font-bold text-green-700">Track Stars</h1>
+    <div className="fixed top-0 left-0 right-0 bg-green-700 text-white p-3 sm:p-6 border-b-4 border-green-800 z-50">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-2 max-w-6xl mx-auto">
+        <h1 className="text-xl sm:text-3xl font-bold text-white">Track Stars</h1>
         <div className="flex flex-wrap justify-center gap-2 sm:gap-4 text-sm sm:text-lg">
-          <span className="font-bold text-yellow-600">💰 ${wallet}</span>
-          <span className="font-bold text-blue-600">🏁 Race {raceNumber}</span>
-          <span className="font-bold text-purple-600">🐴 {horsesCount} Horses</span>
-          <span className="font-bold text-green-600">📏 {raceDistance}m</span>
+          <span className="font-bold text-yellow-300">💰 ${wallet}</span>
+          <span className="font-bold text-blue-200">🏁 {raceLabel}: {displayDistance}m</span>
         </div>
       </div>
       {wallet >= GAME_CONSTANTS.WIN_CONDITION && (
-        <div className="text-center mt-4 text-2xl font-bold text-green-600 animate-pulse">
+        <div className="text-center mt-4 text-2xl font-bold text-yellow-300 animate-pulse max-w-6xl mx-auto">
           🎉 Victory is within reach! Reach ${GAME_CONSTANTS.WIN_CONDITION} to win! 🎉
         </div>
       )}
@@ -55,7 +63,7 @@ function Header({ wallet, raceNumber, horsesCount, raceDistance }) {
 }
 
 // Game over modal
-function GameOverModal({ hasWon, onRestart }) {
+function GameOverModal({ hasWon, onRestart, onContinue }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg p-6 sm:p-8 max-w-md text-center">
@@ -63,19 +71,33 @@ function GameOverModal({ hasWon, onRestart }) {
           <>
             <h2 className="text-3xl sm:text-4xl font-bold text-green-600 mb-4">🏆 You Won! 🏆</h2>
             <p className="text-lg sm:text-xl mb-6">Congratulations! You've built a championship stable!</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={onContinue}
+                className="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition-colors text-lg font-bold"
+              >
+                Continue Racing
+              </button>
+              <button
+                onClick={onRestart}
+                className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors text-lg font-bold"
+              >
+                New Game
+              </button>
+            </div>
           </>
         ) : (
           <>
             <h2 className="text-3xl sm:text-4xl font-bold text-red-600 mb-4">💔 Game Over 💔</h2>
             <p className="text-lg sm:text-xl mb-6">You ran out of money. Better luck next time!</p>
+            <button
+              onClick={onRestart}
+              className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors text-lg font-bold"
+            >
+              Play Again
+            </button>
           </>
         )}
-        <button
-          onClick={onRestart}
-          className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors text-lg font-bold"
-        >
-          Play Again
-        </button>
       </div>
     </div>
   );
@@ -197,8 +219,11 @@ function sortHorsesByPerformance(horses) {
 }
 
 // Tab-based Horse Selection Component  
-function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelectedHorse, raceDistance, getDistanceExpertise, getBestDistance }) {
+function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelectedHorse, raceDistance, getDistanceExpertise, getBestDistance, raceNumber, wallet }) {
   const [activeTab, setActiveTab] = useState('stable');
+  
+  // Find the highest speed among player horses
+  const highestSpeed = Math.max(...playerHorses.map(h => h.speed));
   
   return (
     <div className="pb-20"> {/* Add bottom padding for banner */}
@@ -229,7 +254,7 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
           </div>
           
           {/* Tab Content */}
-          <div className="p-4">
+          <div className="p-4 rounded-b-lg">
             {activeTab === 'stable' && (
               <div>
                 <div className="space-y-3">
@@ -244,6 +269,9 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
                       showBestDistance={true}
                       getBestDistance={getBestDistance}
                       isPlayerHorse={true}
+                      isHighestSpeed={horse.speed === highestSpeed}
+                      raceNumber={raceNumber}
+                      wallet={wallet}
                     />
                   ))}
                 </div>
@@ -255,6 +283,7 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
                 aiHorses={aiHorses}
                 raceDistance={raceDistance}
                 getDistanceExpertise={getDistanceExpertise}
+                getBestDistance={getBestDistance}
                 isInTab={true}
               />
             )}
@@ -282,6 +311,9 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
                   showBestDistance={true}
                   getBestDistance={getBestDistance}
                   isPlayerHorse={true}
+                  isHighestSpeed={horse.speed === highestSpeed}
+                  raceNumber={raceNumber}
+                  wallet={wallet}
                 />
               ))}
             </div>
@@ -299,6 +331,7 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
               aiHorses={aiHorses}
               raceDistance={raceDistance}
               getDistanceExpertise={getDistanceExpertise}
+              getBestDistance={getBestDistance}
               isInTab={true}
             />
           </div>
@@ -310,7 +343,7 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
 
 
 // Expandable Competition Intel Component
-function CompetitionIntel({ aiHorses, raceDistance, getDistanceExpertise, isInTab = false }) {
+function CompetitionIntel({ aiHorses, raceDistance, getDistanceExpertise, getBestDistance, isInTab = false }) {
   const { TRAIT_DEFINITIONS } = window.GameConfig;
   const [isExpanded, setIsExpanded] = useState(isInTab); // Auto-expand when in tab
   
@@ -352,8 +385,8 @@ function CompetitionIntel({ aiHorses, raceDistance, getDistanceExpertise, isInTa
               const traitsVisible = (horse.id * 5678) % 10 >= 2; // Was 3, now 2 (80% chance vs 70%)
               const distanceVisible = (horse.id * 9876) % 10 >= 3; // Was 5, now 3 (70% chance vs 50%)
               
-              // Show exact speed when visible (removed inaccuracy)
-              const displaySpeed = speedVisible ? horse.speed : null;
+              // Show exact speed when visible (removed inaccuracy), rounded to whole number
+              const displaySpeed = speedVisible ? Math.round(horse.speed) : null;
               
               return (
                 <div key={horse.id} className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:shadow-lg transition-shadow">
@@ -403,21 +436,30 @@ function CompetitionIntel({ aiHorses, raceDistance, getDistanceExpertise, isInTa
                       </div>
                     </div>
                     
-                    {/* Distance Intel */}
+                    {/* Best Distance Intel */}
                     {distanceVisible ? (() => {
-                      const { calculateDistanceFit } = window.HorseSystem;
-                      const fit = calculateDistanceFit(horse, raceDistance);
-                      const expertise = getDistanceExpertise(fit);
+                      const bestDistance = getBestDistance(horse);
+                      const isPerfectMatch = bestDistance === raceDistance;
                       return (
-                        <div className={`text-center p-2 rounded-lg ${expertise.bgColor}`}>
-                          <div className={`text-xs font-semibold mb-1 ${expertise.color}`}>DISTANCE</div>
-                          <div className="text-lg">{expertise.icon}</div>
-                          <div className={`text-xs font-medium ${expertise.color}`}>{expertise.text}</div>
+                        <div className={`text-center p-2 rounded-lg relative ${
+                          isPerfectMatch 
+                            ? 'bg-gradient-to-br from-purple-100 to-purple-50 ring-2 ring-purple-400'
+                            : 'bg-purple-50'
+                        }`}>
+                          {isPerfectMatch && (
+                            <div className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                              ✓
+                            </div>
+                          )}
+                          <div className="text-xs font-semibold text-purple-600 mb-1">BEST AT</div>
+                          <div className={`font-bold text-lg ${
+                            isPerfectMatch ? 'text-purple-800' : 'text-purple-700'
+                          }`}>{bestDistance}m</div>
                         </div>
                       );
                     })() : (
                       <div className="text-center p-2 bg-gray-50 rounded-lg">
-                        <div className="text-xs font-semibold text-gray-600 mb-1">DISTANCE</div>
+                        <div className="text-xs font-semibold text-gray-600 mb-1">BEST AT</div>
                         <div className="text-lg text-gray-400">❓</div>
                         <div className="text-xs text-gray-500">Unknown</div>
                       </div>
@@ -435,7 +477,7 @@ function CompetitionIntel({ aiHorses, raceDistance, getDistanceExpertise, isInTa
 
 
 // Consistent Horse Card (matches opponent format)
-function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExpertise, showBestDistance = false, getBestDistance }) {
+function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExpertise, showBestDistance = false, getBestDistance, isPlayerHorse = false, isHighestSpeed = false, raceNumber = 1, wallet = 1000 }) {
   const { TRAIT_DEFINITIONS } = window.GameConfig;
   const { calculateDistanceFit } = window.HorseSystem;
   
@@ -445,10 +487,12 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
   // Get best distance if requested
   const bestDistance = showBestDistance && getBestDistance ? getBestDistance(horse) : null;
   
-  // Clear new and upgraded flags after first display
+  // Check if best distance matches current race distance
+  const isPerfectDistanceMatch = bestDistance === raceDistance;
+  
+  // Clear visual feedback flags after first display
   useEffect(() => {
     if (horse.isNew) {
-      // Clear the new flag after a short delay
       const timer = setTimeout(() => {
         horse.isNew = false;
       }, 100);
@@ -457,11 +501,19 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
   }, [horse]);
   
   useEffect(() => {
-    if (horse.isUpgraded) {
-      // Clear the upgraded flag after a short delay
+    if (horse.newTrait) {
       const timer = setTimeout(() => {
-        horse.isUpgraded = false;
-      }, 100);
+        horse.newTrait = null;
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [horse]);
+  
+  useEffect(() => {
+    if (horse.speedIncrease) {
+      const timer = setTimeout(() => {
+        horse.speedIncrease = null;
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [horse]);
@@ -474,9 +526,7 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
           ? 'bg-white border-2 border-blue-500 rounded-xl p-4 shadow-lg ring-2 ring-blue-200' 
           : horse.isNew
             ? 'bg-white border-2 border-yellow-400 rounded-xl p-4 shadow-lg ring-2 ring-yellow-200'
-            : horse.isUpgraded
-              ? 'bg-white border-2 border-yellow-500 rounded-xl p-4 shadow-lg ring-2 ring-yellow-300'
-              : 'bg-white border-2 border-gray-200 rounded-xl p-4'
+            : 'bg-white border-2 border-gray-200 rounded-xl p-4'
       }`}
     >
       {/* Header */}
@@ -484,31 +534,81 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
         <div className="flex items-center space-x-3">
           <HorseIcon color={horse.color} size="md" />
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-bold text-lg text-gray-900">{horse.name}</span>
-              {horse.isNew && (
-                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
-                  NEW
-                </span>
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-lg text-gray-900">{horse.name}</span>
+                {horse.isNew && (
+                  <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
+                    NEW
+                  </span>
+                )}
+                {/* Specialization Badge - Only for high levels */}
+                {horse.specializationLevel && ['Legend', 'Master', 'Champion'].includes(horse.specializationLevel) && (
+                  <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${
+                    horse.specializationLevel === 'Legend' 
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-600' 
+                      : horse.specializationLevel === 'Master' 
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-blue-600'
+                        : 'bg-gradient-to-r from-green-500 to-blue-500 text-white border-green-600'
+                  }`}>
+                    {horse.specializationLevel}
+                    {(() => {
+                      const { getSpecializationBonus } = window.HorseSystem;
+                      const bonus = getSpecializationBonus(horse, raceNumber, wallet);
+                      return bonus > 0 ? ` (+${bonus})` : '';
+                    })()}
+                  </span>
+                )}
+              </div>
+              {/* Level and Race Results */}
+              {isPlayerHorse && (
+                <div className="flex items-center justify-between mt-1 text-xs">
+                  <div className={`font-medium ${
+                    horse.specializationLevel === 'Legend' ? 'text-purple-600' :
+                    horse.specializationLevel === 'Master' ? 'text-blue-600' :
+                    horse.specializationLevel === 'Champion' ? 'text-green-600' :
+                    horse.specializationLevel === 'Rookie+' ? 'text-yellow-600' :
+                    'text-gray-600'
+                  }`}>
+                    Level {(() => {
+                      switch(horse.specializationLevel) {
+                        case 'Legend': return '4: Legend';
+                        case 'Master': return '3: Master';
+                        case 'Champion': return '2: Champion';
+                        case 'Rookie+': return '1+: Rookie+';
+                        default: return '1: Rookie';
+                      }
+                    })()}
+                    {(() => {
+                      const { getSpecializationBonus } = window.HorseSystem;
+                      const bonus = getSpecializationBonus(horse, raceNumber, wallet);
+                      return bonus > 0 ? ` (+${bonus} speed)` : '';
+                    })()}
+                  </div>
+                  <div className="text-gray-500">
+                    {horse.totalWins || 0}W
+                    {(horse.totalSeconds || 0) > 0 && `, ${horse.totalSeconds}\u2022 2nd`}
+                    {' '}/ {horse.totalRaces || 0}R
+                  </div>
+                </div>
               )}
-              {horse.isUpgraded && (
-                <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-200 text-yellow-900 border border-yellow-400">
-                  UPGRADED
-                </span>
-              )}
+              
               {/* Trait Pills */}
-              <div className="flex space-x-1">
+              <div className="flex space-x-1 mt-2">
                 {horse.traits.map(trait => {
                   const traitDef = TRAIT_DEFINITIONS[trait];
                   const isPositive = !['temperamental', 'lazy', 'nervous', 'brittle'].includes(trait);
                   const colorClass = isPositive 
                     ? 'bg-green-100 text-green-700 border-green-200' 
                     : 'bg-red-100 text-red-700 border-red-200';
+                  const isNewTrait = horse.newTrait === trait;
                   
                   return (
                     <span 
                       key={trait}
-                      className={`px-2 py-0.5 text-xs font-medium rounded-full border ${colorClass}`}
+                      className={`px-2 py-0.5 text-xs font-medium rounded-full border ${colorClass} ${
+                        isNewTrait ? 'trait-glow' : ''
+                      }`}
                     >
                       {traitDef.name}
                     </span>
@@ -532,18 +632,52 @@ function HorseCard({ horse, isSelected, onSelect, raceDistance, getDistanceExper
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
         {/* Speed */}
-        <div className="text-center p-2 bg-blue-50 rounded-lg">
+        <div className={`text-center p-2 rounded-lg relative ${
+          isHighestSpeed && isPlayerHorse
+            ? 'bg-gradient-to-br from-blue-100 to-blue-50 ring-2 ring-blue-400' 
+            : 'bg-blue-50'
+        } ${horse.speedIncrease ? 'speed-glow' : ''}`}>
+          {isHighestSpeed && isPlayerHorse && (
+            <div className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+              ★
+            </div>
+          )}
           <div className="text-xs font-semibold text-blue-600 mb-1">SPEED</div>
-          <div className="font-bold text-lg text-blue-700">{horse.speed}</div>
+          <div className="font-bold text-lg text-blue-700">
+            {horse.speed}
+            {(() => {
+              const { getSpecializationBonus } = window.HorseSystem;
+              const bonus = getSpecializationBonus(horse, raceNumber, wallet);
+              return bonus > 0 ? (
+                <span className="text-sm text-green-600 ml-1">(+{bonus})</span>
+              ) : null;
+            })()}
+            {horse.speedIncrease && (
+              <span className="text-sm text-yellow-600 ml-1 font-bold">+{horse.speedIncrease}</span>
+            )}
+          </div>
         </div>
         
         {/* Distance Match */}
-        <div className={`text-center p-2 rounded-lg ${showBestDistance ? 'bg-purple-50' : expertise.bgColor}`}>
+        <div className={`text-center p-2 rounded-lg relative ${
+          showBestDistance 
+            ? isPerfectDistanceMatch && isPlayerHorse
+              ? 'bg-gradient-to-br from-purple-100 to-purple-50 ring-2 ring-purple-400'
+              : 'bg-purple-50'
+            : expertise.bgColor
+        }`}>
+          {isPerfectDistanceMatch && showBestDistance && isPlayerHorse && (
+            <div className="absolute -top-1 -right-1 bg-purple-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+              ✓
+            </div>
+          )}
           <div className={`text-xs font-semibold mb-1 ${showBestDistance ? 'text-purple-600' : expertise.color}`}>
             {showBestDistance ? 'BEST AT' : 'DISTANCE'}
           </div>
           {showBestDistance ? (
-            <div className="font-bold text-lg text-purple-700">{bestDistance}m</div>
+            <div className={`font-bold text-lg ${
+              isPerfectDistanceMatch && isPlayerHorse ? 'text-purple-800' : 'text-purple-700'
+            }`}>{bestDistance}m</div>
           ) : (
             <>
               <div className="text-lg">{expertise.icon}</div>
@@ -681,7 +815,9 @@ function RaceTrack({ horses, racePositions, selectedHorse }) {
 }
 
 // Horse picker component
-function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExpertise, getBestDistance }) {
+function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExpertise, getBestDistance, raceNumber = 1, wallet = 1000 }) {
+  const highestSpeed = Math.max(...horses.map(h => h.speed));
+  
   return (
     <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg">
       <h2 className="text-xl sm:text-2xl font-bold mb-4">{title}</h2>
@@ -696,6 +832,10 @@ function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExperti
             getDistanceExpertise={getDistanceExpertise}
             showBestDistance={true}
             getBestDistance={getBestDistance}
+            isPlayerHorse={true}
+            isHighestSpeed={horse.speed === highestSpeed}
+            raceNumber={raceNumber}
+            wallet={wallet}
           />
         ))}
       </div>
@@ -703,7 +843,7 @@ function HorsePicker({ horses, onSelect, title, raceDistance, getDistanceExperti
   );
 }
 // Horse buying interface component
-function HorseBuyingInterface({ horses, onPurchase, getDistanceExpertise, getBestDistance }) {
+function HorseBuyingInterface({ horses, onPurchase, getDistanceExpertise, getBestDistance, raceNumber = 1, wallet = 1000 }) {
   const [selectedHorse, setSelectedHorse] = useState(null);
   
   return (
@@ -741,6 +881,8 @@ function HorseBuyingInterface({ horses, onPurchase, getDistanceExpertise, getBes
               showBestDistance={true}
               getBestDistance={getBestDistance}
               isPlayerHorse={false}
+              raceNumber={raceNumber}
+              wallet={wallet}
             />
           </div>
         ))}
@@ -764,8 +906,9 @@ function HorseBuyingInterface({ horses, onPurchase, getDistanceExpertise, getBes
 }
 
 // Breeding interface component
-function BreedingInterface({ horses, onBreed, raceDistance, getDistanceExpertise, getBestDistance }) {
+function BreedingInterface({ horses, onBreed, raceDistance, getDistanceExpertise, getBestDistance, raceNumber = 1, wallet = 1000 }) {
   const [selectedHorses, setSelectedHorses] = useState([]);
+  const highestSpeed = Math.max(...horses.map(h => h.speed));
   
   const handleHorseClick = (horse) => {
     if (selectedHorses.find(h => h.id === horse.id)) {
@@ -836,6 +979,9 @@ function BreedingInterface({ horses, onBreed, raceDistance, getDistanceExpertise
                     showBestDistance={true}
                     getBestDistance={getBestDistance}
                     isPlayerHorse={true}
+                    isHighestSpeed={horse.speed === highestSpeed}
+                    raceNumber={raceNumber}
+                    wallet={wallet}
                   />
                 </div>
               </div>
@@ -890,6 +1036,7 @@ function StableRacingGame() {
   const [pendingUpgrade, setPendingUpgrade] = useState(null);
   const [lastRaceResult, setLastRaceResult] = useState(null);
   const [horseBuyingOptions, setHorseBuyingOptions] = useState([]);
+  const [chosenUpgrades, setChosenUpgrades] = useState([]); // Track upgrades chosen this round
 
   // === EFFECTS ===
   
@@ -903,7 +1050,7 @@ function StableRacingGame() {
   // Calculate dynamic entry fees based on race number and wallet
   const entryFees = useMemo(() => {
     const minBet = Math.floor(10 * Math.pow(GAME_CONSTANTS.MIN_ENTRY_MULTIPLIER, raceNumber - 1));
-    const maxAllowed = Math.min(wallet, 200);
+    const maxAllowed = wallet;
     
     const fees = [
       { amount: Math.min(minBet, maxAllowed), multiplier: 1, label: 'Min' },
@@ -1039,7 +1186,9 @@ function StableRacingGame() {
       selectedBoost,
       raceDistance,
       setRacePositions,  // Position update callback
-      handleRaceFinish   // Race finish callback
+      handleRaceFinish,  // Race finish callback
+      raceNumber,
+      wallet
     );
   }, [selectedHorse, selectedEntryFee, wallet, aiHorses, selectedBoost, raceDistance]);
 
@@ -1055,26 +1204,48 @@ function StableRacingGame() {
       setWallet(prev => prev + playerResult.winnings);
     }
     
+    // Update horse specialization
+    const { updateHorseSpecialization } = window.HorseSystem;
+    setPlayerHorses(prev => prev.map(horse => 
+      horse.id === selectedHorse.id 
+        ? updateHorseSpecialization(horse, raceDistance, playerResult.position)
+        : horse
+    ));
+    
     setLastRaceResult(playerResult);
     setSelectedBoost(null);
     setGamePhase(GAME_PHASES.POST_RACE);
-  }, [selectedHorse, prizePool]);
+  }, [selectedHorse, prizePool, raceDistance]);
 
   // === UPGRADE SYSTEM ===
   
   // Generate upgrade options when entering post-race phase
   useEffect(() => {
-    if (gamePhase === GAME_PHASES.POST_RACE) {
+    if (gamePhase === GAME_PHASES.POST_RACE && upgradeOptions.length === 0) {
+      // Only generate options if we don't already have them (first time)
       const options = generateUpgradeOptions(raceNumber, wallet, playerHorses.length);
       setUpgradeOptions(options);
+      setChosenUpgrades([]); // Reset chosen upgrades for new round
       
       // Generate next race distance for upgrade/breeding decisions
       // Next distance is already determined by the sequence
     }
-  }, [gamePhase, raceNumber, wallet]);
+  }, [gamePhase, raceNumber, wallet, upgradeOptions.length]);
 
   // Apply an upgrade
   const applyUpgrade = useCallback((upgrade) => {
+    // Calculate cost for this upgrade
+    const upgradeCost = chosenUpgrades.length === 0 ? 0 : 
+                       GAME_CONSTANTS.ADDITIONAL_UPGRADE_COSTS[chosenUpgrades.length - 1] || 300;
+    
+    if (wallet < upgradeCost) return; // Can't afford
+    
+    // Deduct cost and add to chosen upgrades
+    if (upgradeCost > 0) {
+      setWallet(prev => prev - upgradeCost);
+    }
+    setChosenUpgrades(prev => [...prev, upgrade]);
+    
     if (upgrade.requiresHorsePick) {
       setPendingUpgrade(upgrade);
       setGamePhase(GAME_PHASES.HORSE_PICKER);
@@ -1099,8 +1270,8 @@ function StableRacingGame() {
         return;
     }
     
-    proceedToNextRace();
-  }, [generateHorseBuyingOptions, proceedToNextRace]);
+    // Don't proceed to next race automatically - let player choose more upgrades
+  }, [generateHorseBuyingOptions, wallet, chosenUpgrades, GAME_CONSTANTS]);
 
   // Apply upgrade to specific horse
   const applyUpgradeToSpecificHorse = useCallback((horse) => {
@@ -1111,17 +1282,17 @@ function StableRacingGame() {
     ));
     
     setPendingUpgrade(null);
-    proceedToNextRace();
-  }, [pendingUpgrade, proceedToNextRace, raceDistance]);
+    setGamePhase(GAME_PHASES.POST_RACE); // Return to upgrade selection
+  }, [pendingUpgrade, raceDistance]);
 
   // === BREEDING SYSTEM ===
   
   // Handle horse breeding
   const handleBreeding = useCallback((parent1, parent2) => {
-    const offspring = breedHorses(parent1, parent2);
+    const offspring = breedHorses(parent1, parent2, raceNumber, wallet);
     offspring.isNew = true; // Mark as new
     setPlayerHorses(prev => [...prev, offspring]);
-    proceedToNextRace();
+    setGamePhase(GAME_PHASES.POST_RACE); // Return to upgrade selection
   }, []);
 
   // Handle horse purchase  
@@ -1134,14 +1305,25 @@ function StableRacingGame() {
     };
     
     setPlayerHorses(prev => [...prev, purchasedHorse]);
-    proceedToNextRace();
-  }, [proceedToNextRace]);
+    setGamePhase(GAME_PHASES.POST_RACE); // Return to upgrade selection
+  }, []);
+
+  // Reroll upgrade options
+  const rerollUpgrades = useCallback(() => {
+    if (wallet < GAME_CONSTANTS.REROLL_COST) return;
+    
+    setWallet(prev => prev - GAME_CONSTANTS.REROLL_COST);
+    const options = generateUpgradeOptions(raceNumber, wallet - GAME_CONSTANTS.REROLL_COST, playerHorses.length);
+    setUpgradeOptions(options);
+  }, [wallet, raceNumber, playerHorses.length, GAME_CONSTANTS]);
 
   // === GAME FLOW ===
   
   // Proceed to next race
   const proceedToNextRace = useCallback(() => {
     setRaceNumber(prev => prev + 1);
+    setUpgradeOptions([]); // Clear upgrade options for next round
+    setChosenUpgrades([]); // Clear chosen upgrades
     
     // Advance race distance index first
     setRaceDistanceIndex(prevIndex => {
@@ -1186,8 +1368,14 @@ function StableRacingGame() {
     setSelectedBoost(null);
     setPendingUpgrade(null);
     setLastRaceResult(null);
+    setUpgradeOptions([]);
+    setChosenUpgrades([]);
     initializeGame();
   }, [initializeGame]);
+
+  const continueRacing = useCallback(() => {
+    setGamePhase(GAME_PHASES.HORSE_SELECTION);
+  }, []);
 
   // === GAME STATE CHECKS ===
   
@@ -1308,17 +1496,18 @@ function StableRacingGame() {
   }
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-800 to-green-600 p-2 sm:p-4">
+    <div className="min-h-screen bg-gradient-to-b from-green-800 to-green-600 p-2 sm:p-4 pt-20 sm:pt-24">
       <div className="max-w-6xl mx-auto">
         <Header 
           wallet={wallet} 
           raceNumber={raceNumber} 
           horsesCount={playerHorses.length} 
           raceDistance={raceDistance} 
+          gamePhase={gamePhase}
         />
 
         {(hasWon || hasLost) && (
-          <GameOverModal hasWon={hasWon} onRestart={restartGame} />
+          <GameOverModal hasWon={hasWon} onRestart={restartGame} onContinue={continueRacing} />
         )}
 
         {/* Horse Selection Phase */}
@@ -1346,6 +1535,8 @@ function StableRacingGame() {
               raceDistance={raceDistance}
               getDistanceExpertise={getDistanceExpertise}
               getBestDistance={getBestDistance}
+              raceNumber={raceNumber}
+              wallet={wallet}
             />
           </div>
         )}
@@ -1368,6 +1559,8 @@ function StableRacingGame() {
             raceDistance={RACE_DISTANCES[raceDistanceIndex]}
             getDistanceExpertise={getDistanceExpertise}
             getBestDistance={getBestDistance}
+            raceNumber={raceNumber}
+            wallet={wallet}
           />
         )}
 
@@ -1379,6 +1572,8 @@ function StableRacingGame() {
             raceDistance={RACE_DISTANCES[raceDistanceIndex]}
             getDistanceExpertise={getDistanceExpertise}
             getBestDistance={getBestDistance}
+            raceNumber={raceNumber}
+            wallet={wallet}
           />
         )}
 
@@ -1389,6 +1584,8 @@ function StableRacingGame() {
             onPurchase={handleHorsePurchase}
             getDistanceExpertise={getDistanceExpertise}
             getBestDistance={getBestDistance}
+            raceNumber={raceNumber}
+            wallet={wallet}
           />
         )}
 
@@ -1397,7 +1594,15 @@ function StableRacingGame() {
           <div className="space-y-6">
             {/* Upgrade Options */}
             <div className="bg-white rounded-lg p-4 sm:p-6 shadow-lg">
-              <h2 className="text-xl sm:text-2xl font-bold mb-4">Choose an Upgrade</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold">Choose Upgrades</h2>
+                <div className="text-sm text-gray-600">
+                  Chosen: {chosenUpgrades.length} | Next cost: ${
+                    chosenUpgrades.length === 0 ? 0 : 
+                    GAME_CONSTANTS.ADDITIONAL_UPGRADE_COSTS[chosenUpgrades.length - 1] || 300
+                  }
+                </div>
+              </div>
               
               {/* Next Race Info */}
               <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
@@ -1415,11 +1620,24 @@ function StableRacingGame() {
                 {upgradeOptions.map((upgrade, index) => (
                   <div
                     key={index}
-                    onClick={() => upgrade.cost <= wallet && applyUpgrade(upgrade)}
+                    onClick={() => {
+                      const upgradeCost = chosenUpgrades.length === 0 ? 0 : 
+                                         GAME_CONSTANTS.ADDITIONAL_UPGRADE_COSTS[chosenUpgrades.length - 1] || 300;
+                      const isChosen = chosenUpgrades.some(u => u.type === upgrade.type);
+                      if (!isChosen && wallet >= upgradeCost) {
+                        applyUpgrade(upgrade);
+                      }
+                    }}
                     className={`p-5 border-2 rounded-lg transition-all min-h-[100px] ${
-                      upgrade.cost > wallet
-                        ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
-                        : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50 cursor-pointer active:scale-[0.98]'
+                      chosenUpgrades.some(u => u.type === upgrade.type)
+                        ? 'border-green-500 bg-green-50 opacity-60 cursor-not-allowed'
+                        : (() => {
+                            const cost = chosenUpgrades.length === 0 ? 0 : 
+                                        GAME_CONSTANTS.ADDITIONAL_UPGRADE_COSTS[chosenUpgrades.length - 1] || 300;
+                            return cost > wallet
+                              ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
+                              : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50 cursor-pointer active:scale-[0.98]';
+                          })()
                     }`}
                   >
                     <div className="flex items-start justify-between">
@@ -1428,12 +1646,19 @@ function StableRacingGame() {
                         <p className="text-sm text-gray-600">{upgrade.desc}</p>
                       </div>
                       <div className="ml-4">
-                        {upgrade.cost > 0 ? (
-                          <div className={`text-lg font-bold whitespace-nowrap ${upgrade.cost > wallet ? 'text-red-600' : 'text-green-600'}`}>
-                            ${upgrade.cost}
-                          </div>
+                        {chosenUpgrades.some(u => u.type === upgrade.type) ? (
+                          <div className="text-lg font-bold text-green-600">✓</div>
                         ) : (
-                          <div className="text-lg font-bold text-green-600">FREE</div>
+                          <div className={`text-lg font-bold whitespace-nowrap ${
+                            (() => {
+                              const cost = chosenUpgrades.length === 0 ? 0 : 
+                                          GAME_CONSTANTS.ADDITIONAL_UPGRADE_COSTS[chosenUpgrades.length - 1] || 300;
+                              return cost > wallet ? 'text-red-600' : 'text-green-600';
+                            })()
+                          }`}>
+                            ${chosenUpgrades.length === 0 ? 0 : 
+                              GAME_CONSTANTS.ADDITIONAL_UPGRADE_COSTS[chosenUpgrades.length - 1] || 300}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1443,27 +1668,41 @@ function StableRacingGame() {
               
               {/* Desktop - Original grid */}
               <div className="hidden sm:grid grid-cols-1 md:grid-cols-3 gap-4">
-                {upgradeOptions.map((upgrade, index) => (
-                  <div
-                    key={index}
-                    onClick={() => applyUpgrade(upgrade)}
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      upgrade.cost > wallet
-                        ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
-                        : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
-                    }`}
-                  >
-                    <h3 className="font-bold text-base sm:text-lg mb-2">{upgrade.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3">{upgrade.desc}</p>
-                    {upgrade.cost > 0 ? (
-                      <div className={`text-base sm:text-lg font-bold ${upgrade.cost > wallet ? 'text-red-600' : 'text-green-600'}`}>
-                        Cost: ${upgrade.cost}
-                      </div>
-                    ) : (
-                      <div className="text-base sm:text-lg font-bold text-green-600">FREE</div>
-                    )}
-                  </div>
-                ))}
+                {upgradeOptions.map((upgrade, index) => {
+                  const upgradeCost = chosenUpgrades.length === 0 ? 0 : 
+                                     GAME_CONSTANTS.ADDITIONAL_UPGRADE_COSTS[chosenUpgrades.length - 1] || 300;
+                  const isChosen = chosenUpgrades.some(u => u.type === upgrade.type);
+                  
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        if (!isChosen && wallet >= upgradeCost) {
+                          applyUpgrade(upgrade);
+                        }
+                      }}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        isChosen
+                          ? 'border-green-500 bg-green-50 opacity-60 cursor-not-allowed'
+                          : upgradeCost > wallet
+                            ? 'border-gray-300 bg-gray-100 opacity-50 cursor-not-allowed'
+                            : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
+                      }`}
+                    >
+                      <h3 className="font-bold text-base sm:text-lg mb-2">{upgrade.name}</h3>
+                      <p className="text-sm text-gray-600 mb-3">{upgrade.desc}</p>
+                      {isChosen ? (
+                        <div className="text-base sm:text-lg font-bold text-green-600">✓ Selected</div>
+                      ) : (
+                        <div className={`text-base sm:text-lg font-bold ${
+                          upgradeCost > wallet ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {upgradeCost === 0 ? 'FREE' : `Cost: $${upgradeCost}`}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               
               {/* Comeback Bonus Indicator */}
@@ -1480,6 +1719,28 @@ function StableRacingGame() {
                 }
                 return null;
               })()}
+              
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                <button
+                  onClick={rerollUpgrades}
+                  disabled={wallet < GAME_CONSTANTS.REROLL_COST}
+                  className={`px-6 py-3 rounded-lg transition-colors font-bold ${
+                    wallet < GAME_CONSTANTS.REROLL_COST
+                      ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                      : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                  }`}
+                >
+                  🎲 Reroll Options (${GAME_CONSTANTS.REROLL_COST})
+                </button>
+                
+                <button
+                  onClick={proceedToNextRace}
+                  className="px-6 py-3 rounded-lg bg-green-500 text-white hover:bg-green-600 transition-colors font-bold flex-1"
+                >
+                  Continue to Next Race ➡️
+                </button>
+              </div>
             </div>
 
             {/* Race Results */}
@@ -1490,9 +1751,11 @@ function StableRacingGame() {
                   <div 
                     key={horse.id} 
                     className={`flex items-center justify-between p-3 rounded ${
-                      index === 0 ? 'bg-yellow-100' : 
-                      index === 1 ? 'bg-gray-100' : 
-                      index === 2 ? 'bg-orange-100' : 'bg-gray-50'
+                      horse.isPlayer 
+                        ? 'border-2 border-blue-500 bg-blue-50'
+                        : index === 0 ? 'bg-yellow-100' : 
+                          index === 1 ? 'bg-gray-100' : 
+                          index === 2 ? 'bg-orange-100' : 'bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
@@ -1516,25 +1779,116 @@ function StableRacingGame() {
                 ))}
               </div>
               
-              {/* Results Summary */}
-              <div className="mt-4 p-4 border-t">
-                {lastRaceResult && (
-                  lastRaceResult.position < 3 ? (
-                    <div className="text-green-600 font-bold text-base sm:text-lg">
-                      🎉 {['1st', '2nd', '3rd'][lastRaceResult.position]} Place! {selectedHorse.name} won ${lastRaceResult.winnings}!
+              {/* Results Summary with Victory Celebration */}
+              {lastRaceResult && (
+                lastRaceResult.position < 3 ? (
+                  <VictoryCelebration
+                    position={lastRaceResult.position}
+                    winnings={lastRaceResult.winnings}
+                    horseName={selectedHorse.name}
+                  />
+                ) : (
+                  <div className="mt-4 p-4 border-t">
+                    <div className="text-red-600 font-bold text-base sm:text-lg text-center">
+                      {selectedHorse.name} finished {lastRaceResult.position + 1}th
                     </div>
-                  ) : (
-                    <div className="text-red-600 font-bold text-base sm:text-lg">
-                      ❌ {selectedHorse.name} finished {lastRaceResult.position + 1}th. No prize money.
+                    <div className="text-gray-500 text-center mt-1">
+                      No prize money - finish in the top 3 to win!
                     </div>
-                  )
-                )}
-              </div>
+                  </div>
+                )
+              )}
             </div>
           </div>
         )}
 
         <ActionBar />
+      </div>
+    </div>
+  );
+}
+
+// Victory Celebration Component
+function VictoryCelebration({ position, winnings, horseName, onAnimationComplete }) {
+  const [displayWinnings, setDisplayWinnings] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
+  
+  useEffect(() => {
+    // Show celebration after a short delay
+    const celebrationTimer = setTimeout(() => {
+      setShowCelebration(true);
+    }, 300);
+    
+    // Animate prize money counting up
+    if (winnings > 0) {
+      const duration = 1500; // 1.5 seconds
+      const steps = 30;
+      const increment = winnings / steps;
+      let currentStep = 0;
+      
+      const counterInterval = setInterval(() => {
+        currentStep++;
+        if (currentStep <= steps) {
+          setDisplayWinnings(Math.floor(increment * currentStep));
+        } else {
+          setDisplayWinnings(winnings);
+          clearInterval(counterInterval);
+          if (onAnimationComplete) {
+            setTimeout(onAnimationComplete, 500);
+          }
+        }
+      }, duration / steps);
+      
+      return () => {
+        clearInterval(counterInterval);
+        clearTimeout(celebrationTimer);
+      };
+    }
+  }, [winnings, onAnimationComplete]);
+  
+  const placeText = ['1st', '2nd', '3rd'][position];
+  const isFirstPlace = position === 0;
+  
+  return (
+    <div className={`mt-4 p-6 border-t transition-all duration-500 ${
+      showCelebration ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-4'
+    }`}>
+      {/* Victory Header */}
+      <div className="text-center mb-4">
+        <div className={`inline-flex items-center justify-center space-x-3 ${
+          isFirstPlace ? 'animate-pulse' : ''
+        }`}>
+          {isFirstPlace && <span className="text-3xl">🏆</span>}
+          <h3 className={`font-bold ${
+            isFirstPlace ? 'text-3xl text-yellow-600' : 'text-2xl text-gray-700'
+          }`}>
+            {placeText} Place!
+          </h3>
+          {isFirstPlace && <span className="text-3xl">🏆</span>}
+        </div>
+        
+        <p className="text-lg text-gray-600 mt-2">
+          {horseName} finished in {placeText} place
+        </p>
+      </div>
+      
+      {/* Prize Money Animation */}
+      <div className="text-center">
+        <div className="text-lg text-gray-500 mb-1">Prize Money</div>
+        <div className={`text-4xl font-bold transition-all duration-300 ${
+          displayWinnings > 0 ? 'text-green-600 transform scale-110' : 'text-gray-400'
+        }`}>
+          ${displayWinnings.toLocaleString()}
+        </div>
+        
+        {/* Subtle success indicators */}
+        {isFirstPlace && showCelebration && (
+          <div className="mt-4 flex justify-center space-x-2">
+            <span className="inline-block animate-bounce" style={{ animationDelay: '0ms' }}>⭐</span>
+            <span className="inline-block animate-bounce" style={{ animationDelay: '100ms' }}>⭐</span>
+            <span className="inline-block animate-bounce" style={{ animationDelay: '200ms' }}>⭐</span>
+          </div>
+        )}
       </div>
     </div>
   );

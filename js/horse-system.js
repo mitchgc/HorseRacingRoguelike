@@ -83,7 +83,12 @@ function generateHorse(isPlayer = false, raceNum = 1, specificDistance = null, p
     isPlayer,
     fatigue: 0, // Builds up after races
     traits,
-    currentPhase: null // Used during racing
+    currentPhase: null, // Used during racing
+    // Specialization tracking
+    totalWins: 0, // Track total wins (1st place)
+    totalSeconds: 0, // Track second place finishes
+    totalRaces: 0, // Track total races
+    specializationLevel: 'Rookie' // Will be 'Rookie', 'Champion', 'Master', or 'Legend'
   };
 }
 
@@ -99,7 +104,7 @@ function generateHorse(isPlayer = false, raceNum = 1, specificDistance = null, p
  * @param {Object} parent2 - Second parent horse
  * @returns {Object} New offspring horse
  */
-function breedHorses(parent1, parent2) {
+function breedHorses(parent1, parent2, raceNumber = 1, wallet = 1000) {
   const { GAME_CONSTANTS, HORSE_NAMES, TRAIT_DEFINITIONS, randomBetween, randomChoice, shuffleArray, clamp, normalDistribution } = window.GameConfig;
   
   // Calculate average stats from both parents
@@ -107,8 +112,9 @@ function breedHorses(parent1, parent2) {
   const avgBoosterPower = (parent1.boosterPower + parent2.boosterPower) / 2;
   const avgDistance = (parent1.distancePreference + parent2.distancePreference) / 2;
   
-  // 🔥 BREEDING BONUS - Change this to make breeding more/less powerful!
-  const breedingBonus = 1.00; // 5% bonus to speed
+  // 🔥 BREEDING BONUS - Enhanced by comeback bonus when active!
+  const comebackBonus = window.UpgradeSystem?.calculateComebackBonus(raceNumber, wallet) || 1;
+  const breedingBonus = comebackBonus > 1 ? 1.10 : 1.05; // 10% bonus when comeback active, 5% normal
   
   // Add some randomness using normal distribution (realistic variation)
   const speedVariation = normalDistribution(5, 5);      // Usually small changes
@@ -160,7 +166,12 @@ function breedHorses(parent1, parent2) {
     isPlayer: true, // Bred horses are always player-owned
     fatigue: 0,
     traits: finalTraits.length > 0 ? finalTraits : [randomChoice(Object.keys(TRAIT_DEFINITIONS))],
-    parents: [parent1.name, parent2.name] // Track lineage
+    parents: [parent1.name, parent2.name], // Track lineage
+    // Start fresh with specialization
+    totalWins: 0,
+    totalSeconds: 0,
+    totalRaces: 0,
+    specializationLevel: 'Rookie'
   };
 }
 
@@ -175,9 +186,11 @@ function breedHorses(parent1, parent2) {
  * @param {Object} horse - The horse to calculate performance for
  * @param {number} raceDistance - The distance of the race
  * @param {Object} boost - Any performance boost applied (optional)
+ * @param {number} raceNumber - Current race number (for comeback bonus)
+ * @param {number} wallet - Player's current wallet (for comeback bonus)
  * @returns {number} Performance multiplier (0.0 to 1.0+)
  */
-function calculateHorsePerformance(horse, raceDistance, boost = null) {
+function calculateHorsePerformance(horse, raceDistance, boost = null, raceNumber = 1, wallet = 1000) {
   const { GAME_CONSTANTS } = window.GameConfig;
   
   // Speed factor: controlled impact based on scaling setting
@@ -204,8 +217,13 @@ function calculateHorsePerformance(horse, raceDistance, boost = null) {
     }
   }
   
+  // Specialization bonus (applied as speed boost during race)
+  // This is already applied to the displayed speed in UI, but we need to apply it here too
+  const specializationBonus = getSpecializationBonus(horse, raceNumber, wallet);
+  const specBoostFactor = 1 + (specializationBonus / 100); // Convert to multiplier
+  
   // Combine all factors with base performance of 1.0
-  return speedFactor * distanceFactor * fatigueEffect * boostEffect;
+  return speedFactor * distanceFactor * fatigueEffect * boostEffect * specBoostFactor;
 }
 
 // =============================================================================
@@ -269,6 +287,76 @@ function generateHorseBuyingOptions(playerHorses) {
 }
 
 // =============================================================================
+// SPECIALIZATION SYSTEM 🏆
+// =============================================================================
+
+/**
+ * Updates a horse's specialization based on race results
+ * @param {Object} horse - The horse to update
+ * @param {number} raceDistance - The distance of the race (not used anymore)
+ * @param {number} position - The finishing position (0 = 1st, 1 = 2nd, etc)
+ * @returns {Object} Updated horse with specialization progress
+ */
+function updateHorseSpecialization(horse, raceDistance, position) {
+  const { GAME_CONSTANTS } = window.GameConfig;
+  
+  // Track the race
+  horse.totalRaces = (horse.totalRaces || 0) + 1;
+  
+  // Track wins and seconds
+  if (position === 0) {
+    horse.totalWins = (horse.totalWins || 0) + 1;
+  } else if (position === 1) {
+    horse.totalSeconds = (horse.totalSeconds || 0) + 1;
+  }
+  
+  // Calculate level based on wins and seconds
+  const totalPoints = horse.totalWins + (horse.totalSeconds * 0.5);
+  
+  if (horse.totalWins >= GAME_CONSTANTS.WINS_FOR_LEGEND) {
+    horse.specializationLevel = 'Legend';
+  } else if (horse.totalWins >= GAME_CONSTANTS.WINS_FOR_MASTER) {
+    horse.specializationLevel = 'Master';
+  } else if (horse.totalWins >= GAME_CONSTANTS.WINS_FOR_CHAMPION) {
+    horse.specializationLevel = 'Champion';
+  } else if (totalPoints >= 0.5) {
+    // Half level for having at least one second place
+    horse.specializationLevel = 'Rookie+';
+  } else {
+    horse.specializationLevel = 'Rookie';
+  }
+  
+  return horse;
+}
+
+/**
+ * Gets the specialization bonus for a horse
+ * @param {Object} horse - The horse to check
+ * @param {number} raceNumber - Current race number (for comeback bonus)
+ * @param {number} wallet - Player's current wallet (for comeback bonus)
+ * @returns {number} Speed bonus from specialization
+ */
+function getSpecializationBonus(horse, raceNumber = 1, wallet = 1000) {
+  const { GAME_CONSTANTS } = window.GameConfig;
+  
+  if (!horse.specializationLevel) return 0;
+  
+  // Check for comeback bonus enhancement
+  const comebackBonus = window.UpgradeSystem?.calculateComebackBonus(raceNumber, wallet) || 1;
+  const championBonus = comebackBonus > 1 ? 10 : GAME_CONSTANTS.CHAMPION_BONUS;
+  
+  // Return appropriate bonus based on level
+  switch (horse.specializationLevel) {
+    case 'Legend': return GAME_CONSTANTS.LEGEND_BONUS;
+    case 'Master': return GAME_CONSTANTS.MASTER_BONUS;
+    case 'Champion': return championBonus;
+    case 'Rookie+': return 0; // Half level gets no bonus
+    case 'Rookie': return 0;
+    default: return 0;
+  }
+}
+
+// =============================================================================
 // EXPORT FUNCTIONS FOR USE IN OTHER FILES
 // =============================================================================
 
@@ -277,5 +365,7 @@ window.HorseSystem = {
   breedHorses,
   calculateHorsePerformance,
   calculateDistanceFit,
-  generateHorseBuyingOptions
+  generateHorseBuyingOptions,
+  updateHorseSpecialization,
+  getSpecializationBonus
 };

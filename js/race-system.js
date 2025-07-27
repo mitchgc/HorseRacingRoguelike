@@ -20,15 +20,17 @@
  * @param {number} raceDistance - Distance of the race
  * @param {Function} onPositionUpdate - Callback for position updates
  * @param {Function} onRaceFinish - Callback when race ends
+ * @param {number} raceNumber - Current race number (for comeback bonus)
+ * @param {number} wallet - Player's current wallet (for comeback bonus)
  */
-function simulateRace(horses, selectedHorse, selectedBoost, raceDistance, onPositionUpdate, onRaceFinish) {
+function simulateRace(horses, selectedHorse, selectedBoost, raceDistance, onPositionUpdate, onRaceFinish, raceNumber = 1, wallet = 1000) {
   const { GAME_CONSTANTS, TRAIT_DEFINITIONS, PHASE_DEFINITIONS } = window.GameConfig;
   const { calculateHorsePerformance } = window.HorseSystem;
   
   // Initialize race data for each horse
   const raceData = horses.map(horse => ({
     ...horse,
-    basePerformance: calculateHorsePerformance(horse, raceDistance, horse.id === selectedHorse.id ? selectedBoost : null),
+    basePerformance: calculateHorsePerformance(horse, raceDistance, horse.id === selectedHorse.id ? selectedBoost : null, raceNumber, wallet),
     progress: 0,
     momentum: 0.5 + Math.random() * GAME_CONSTANTS.MOMENTUM_VARIANCE,
     energy: 80 + Math.random() * GAME_CONSTANTS.ENERGY_VARIANCE,

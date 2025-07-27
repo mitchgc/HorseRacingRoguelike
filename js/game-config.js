@@ -15,7 +15,7 @@ const GAME_CONSTANTS = {
   INITIAL_WALLET: 100,          // Starting money
   WIN_CONDITION: 1000,          // Money needed to win
   BASE_SPEED: 45,              // Base horse speed
-  SPEED_RANGE: 15,             // How much speed can vary (+/-)
+  SPEED_RANGE: 13,             // How much speed can vary (+/-)
   FATIGUE_PER_RACE: 20,        // How much fatigue horses gain per race
   MAX_RACE_TIME: 50,           // Maximum race duration (in game ticks)
   RACE_INTERVAL_MS: 100,       // How fast the race animation updates (milliseconds)
@@ -23,6 +23,22 @@ const GAME_CONSTANTS = {
   AI_HORSES_COUNT: 7,          // Number of AI horses per race
   MIN_ENTRY_MULTIPLIER: 1.25,  // How much entry fees increase each race
   BREED_COST: 0,               // Cost to breed horses (currently free)
+  
+  // =============================================================================
+  // SPECIALIZATION SYSTEM (Horse mastery progression!)
+  // =============================================================================
+  WINS_FOR_CHAMPION: 1,        // Total wins to become champion
+  WINS_FOR_MASTER: 2,          // Total wins to become master
+  WINS_FOR_LEGEND: 3,          // Total wins to become legend
+  CHAMPION_BONUS: 5,           // Speed bonus for champions
+  MASTER_BONUS: 10,            // Speed bonus for masters
+  LEGEND_BONUS: 20,            // Speed bonus for legends
+  
+  // =============================================================================
+  // UPGRADE SYSTEM COSTS
+  // =============================================================================
+  ADDITIONAL_UPGRADE_COSTS: [100, 200, 300], // Cost for 2nd, 3rd, 4th upgrades
+  REROLL_COST: 50,             // Cost to reroll upgrade options
   
   // =============================================================================
   // AI HORSE POWER CALIBRATION (Adjust AI difficulty here!)

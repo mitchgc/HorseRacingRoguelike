@@ -127,6 +127,33 @@ function generateUpgradeOptions(raceNumber, wallet, playerHorsesCount) {
     traitToAdd: 'versatile'
   });
   
+  allOptions.push({
+    type: 'addEarlySpeed',
+    name: 'Gate Training',
+    desc: 'Add Early Speed trait to selected horse',
+    cost: 0,
+    requiresHorsePick: true,
+    traitToAdd: 'earlySpeed'
+  });
+  
+  allOptions.push({
+    type: 'addFrontRunner',
+    name: 'Leadership Training',
+    desc: 'Add Front Runner trait to selected horse',
+    cost: 0,
+    requiresHorsePick: true,
+    traitToAdd: 'frontRunner'
+  });
+  
+  allOptions.push({
+    type: 'addMudder',
+    name: 'Conditioning Training',
+    desc: 'Add Mudder trait to selected horse',
+    cost: 0,
+    requiresHorsePick: true,
+    traitToAdd: 'mudder'
+  });
+  
   // Stable-wide upgrades
   allOptions.push({
     type: 'stableRest',
@@ -139,16 +166,6 @@ function generateUpgradeOptions(raceNumber, wallet, playerHorsesCount) {
     type: 'removeBadTrait',
     name: 'Behavioral Training',
     desc: 'Remove a negative trait from selected horse',
-    cost: 0,
-    requiresHorsePick: true
-  });
-  
-  
-  // Distance specialization
-  allOptions.push({
-    type: 'optimizeDistance',
-    name: 'Distance Optimization',
-    desc: 'Optimize selected horse for current race distance',
     cost: 0,
     requiresHorsePick: true
   });
@@ -195,7 +212,7 @@ function selectUpgradeOptions(allOptions, comebackBonus) {
   // If player is struggling, prioritize good upgrades
   if (comebackBonus > 1) {
     const goodOptions = allOptions.filter(opt => 
-      ['speed', 'veteran', 'miracleHorse', 'newTrait', 'addSprinter', 'addCloser', 'addVersatile', 'removeBadTrait', 'stableRest'].includes(opt.type) && opt.cost === 0
+      ['speed', 'veteran', 'miracleHorse', 'newTrait', 'addSprinter', 'addCloser', 'addVersatile', 'addEarlySpeed', 'addFrontRunner', 'addMudder', 'removeBadTrait', 'stableRest'].includes(opt.type) && opt.cost === 0
     );
     const otherOptions = allOptions.filter(opt => !goodOptions.includes(opt));
     
@@ -234,7 +251,8 @@ function applyUpgradeToHorse(upgrade, horse, allHorses, raceDistance = 1800) {
     case 'speed':
       return {
         ...horse,
-        speed: Math.min(100, horse.speed + upgrade.value)
+        speed: Math.min(100, horse.speed + upgrade.value),
+        speedIncrease: upgrade.value // Mark how much speed was increased
       };
       
       
@@ -247,13 +265,15 @@ function applyUpgradeToHorse(upgrade, horse, allHorses, raceDistance = 1800) {
     case 'veteran':
       return {
         ...horse,
-        speed: Math.min(100, horse.speed + upgrade.value)
+        speed: Math.min(100, horse.speed + upgrade.value),
+        speedIncrease: upgrade.value
       };
       
     case 'miracleHorse':
       return {
         ...horse,
-        speed: Math.min(100, horse.speed + 15)
+        speed: Math.min(100, horse.speed + 15),
+        speedIncrease: 15
       };
       
     case 'newTrait':
@@ -272,10 +292,14 @@ function applyUpgradeToHorse(upgrade, horse, allHorses, raceDistance = 1800) {
     case 'addSprinter':
     case 'addCloser':
     case 'addVersatile':
+    case 'addEarlySpeed':
+    case 'addFrontRunner':
+    case 'addMudder':
       if (horse.traits.length < 3 && !horse.traits.includes(upgrade.traitToAdd)) {
         return {
           ...horse,
-          traits: [...horse.traits, upgrade.traitToAdd]
+          traits: [...horse.traits, upgrade.traitToAdd],
+          newTrait: upgrade.traitToAdd // Mark which trait was just added
         };
       }
       return horse;
@@ -291,13 +315,6 @@ function applyUpgradeToHorse(upgrade, horse, allHorses, raceDistance = 1800) {
         };
       }
       return horse;
-      
-    case 'optimizeDistance':
-      // Optimize horse for the current race distance
-      return {
-        ...horse,
-        distancePreference: raceDistance
-      };
       
     default:
       return horse; // No change for unknown upgrade types
