@@ -1,4 +1,4 @@
-# 🐎 Virtual Horse Racer
+# 🏇 Track Stars
 
 A browser-based horse racing management game where you breed, train, and race horses to build the ultimate stable and become a racing champion!
 
@@ -7,7 +7,7 @@ A browser-based horse racing management game where you breed, train, and race ho
 - **Horse Breeding System** - Breed horses to create offspring with combined traits and improved stats
 - **Dynamic Racing** - Real-time races with surge/struggle phases and visual effects
 - **Trait System** - 10+ unique traits that affect horse performance (Early Speed, Closer, Sprinter, etc.)
-- **Upgrade System** - Choose upgrades between races to improve your stable
+- **Rich Upgrade System** - Choose from 15+ upgrade types including trait training, stable-wide improvements, and permanent unlocks
 - **AI Scaling** - AI opponents that get progressively stronger as you advance
 - **Multiple Race Distances** - Sprint (1000m), Medium (1800m), and Endurance (2400m) races
 - **Performance Scaling** - Configurable game balance settings to control difficulty
@@ -152,10 +152,13 @@ Contributions are welcome! Feel free to:
 ## 🎮 Gameplay Tips
 
 - **Watch Distance Preferences** - Match horses to race distances for better performance
-- **Manage Fatigue** - Rest tired horses between races
+- **Manage Fatigue** - Rest tired horses between races or use "Spa Day" upgrades
 - **Breed Strategically** - Combine complementary traits for powerful offspring
 - **Use Scout Reports** - Plan your race strategy based on opponent information
 - **Balance Risk/Reward** - Higher entry fees mean bigger prizes but greater risk
+- **Smart Upgrades** - Use specific trait training to build specialized horses
+- **Remove Bad Traits** - Use "Behavioral Training" to eliminate negative traits
+- **Permanent Boosts** - Look for one-time upgrades like "Intelligence Network" for lasting benefits
 
 ---
 

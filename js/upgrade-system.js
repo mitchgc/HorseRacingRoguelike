@@ -97,16 +97,77 @@ function generateUpgradeOptions(raceNumber, wallet, playerHorsesCount) {
     });
   }
   
-  // 🚀 ADD YOUR OWN UPGRADES HERE! 🚀
-  // Example:
-  // allOptions.push({
-  //   type: 'yourUpgrade',
-  //   name: 'Your Upgrade Name',
-  //   desc: 'What it does',
-  //   cost: 50, // Set to 0 for free
-  //   requiresHorsePick: true, // true if they need to pick a horse
-  //   value: 10 // Any numeric value for the upgrade
-  // });
+  // === ADVANCED UPGRADES ===
+  
+  // Trait-specific upgrades
+  allOptions.push({
+    type: 'addSprinter',
+    name: 'Sprint Training',
+    desc: 'Add Sprinter trait to selected horse',
+    cost: 0,
+    requiresHorsePick: true,
+    traitToAdd: 'sprinter'
+  });
+  
+  allOptions.push({
+    type: 'addCloser',
+    name: 'Endurance Training',
+    desc: 'Add Closer trait to selected horse',
+    cost: 0,
+    requiresHorsePick: true,
+    traitToAdd: 'closer'
+  });
+  
+  allOptions.push({
+    type: 'addVersatile',
+    name: 'Versatility Training',
+    desc: 'Add Versatile trait to selected horse',
+    cost: 0,
+    requiresHorsePick: true,
+    traitToAdd: 'versatile'
+  });
+  
+  // Stable-wide upgrades
+  allOptions.push({
+    type: 'stableRest',
+    name: 'Spa Day',
+    desc: 'Remove all fatigue from entire stable',
+    cost: 0
+  });
+  
+  allOptions.push({
+    type: 'removeBadTrait',
+    name: 'Behavioral Training',
+    desc: 'Remove a negative trait from selected horse',
+    cost: 0,
+    requiresHorsePick: true
+  });
+  
+  // Permanent upgrades  
+  allOptions.push({
+    type: 'scoutUpgrade',
+    name: 'Intelligence Network',
+    desc: 'Permanently see all enemy stats (one-time upgrade)',
+    cost: 0,
+    isPermanent: true
+  });
+  
+  allOptions.push({
+    type: 'luckBoost',
+    name: 'Lucky Charm',
+    desc: '+5% chance for positive race events this race',
+    cost: 0,
+    temporary: true
+  });
+  
+  // Distance specialization
+  allOptions.push({
+    type: 'optimizeDistance',
+    name: 'Distance Optimization',
+    desc: 'Optimize selected horse for current race distance',
+    cost: 0,
+    requiresHorsePick: true
+  });
   
   // === SELECTION LOGIC ===
   return selectUpgradeOptions(allOptions, comebackBonus);
@@ -222,12 +283,37 @@ function applyUpgradeToHorse(upgrade, horse, allHorses) {
       }
       return horse; // No change if horse already has 3 traits or no traits available
       
-    // 🚀 ADD YOUR UPGRADE LOGIC HERE! 🚀
-    // case 'yourUpgrade':
-    //   return {
-    //     ...horse,
-    //     yourStat: horse.yourStat + upgrade.value
-    //   };
+    // Specific trait additions
+    case 'addSprinter':
+    case 'addCloser':
+    case 'addVersatile':
+      if (horse.traits.length < 3 && !horse.traits.includes(upgrade.traitToAdd)) {
+        return {
+          ...horse,
+          traits: [...horse.traits, upgrade.traitToAdd]
+        };
+      }
+      return horse;
+      
+    case 'removeBadTrait':
+      const negativeTraits = ['temperamental', 'lazy', 'nervous', 'brittle'];
+      const badTraits = horse.traits.filter(t => negativeTraits.includes(t));
+      if (badTraits.length > 0) {
+        const traitToRemove = randomChoice(badTraits);
+        return {
+          ...horse,
+          traits: horse.traits.filter(t => t !== traitToRemove)
+        };
+      }
+      return horse;
+      
+    case 'optimizeDistance':
+      // This would need the current race distance passed in
+      // For now, we'll optimize for a middle distance (1800m)
+      return {
+        ...horse,
+        distancePreference: 1800
+      };
       
     default:
       return horse; // No change for unknown upgrade types
@@ -249,13 +335,11 @@ function applyUpgradeToAllHorses(upgrade, horses) {
         speed: Math.min(100, horse.speed + upgrade.value)
       }));
       
-      
-    // 🚀 ADD STABLE-WIDE UPGRADES HERE! 🚀
-    // case 'stableYourUpgrade':
-    //   return horses.map(horse => ({
-    //     ...horse,
-    //     yourStat: horse.yourStat + upgrade.value
-    //   }));
+    case 'stableRest':
+      return horses.map(horse => ({
+        ...horse,
+        fatigue: 0
+      }));
       
     default:
       return horses; // No change for unknown upgrade types

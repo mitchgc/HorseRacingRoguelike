@@ -37,7 +37,7 @@ function Header({ wallet, raceNumber, horsesCount, raceDistance }) {
   return (
     <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6 mb-4 sm:mb-6">
       <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
-        <h1 className="text-xl sm:text-3xl font-bold text-green-700">🏇 Stable Manager</h1>
+        <h1 className="text-xl sm:text-3xl font-bold text-green-700">Track Stars</h1>
         <div className="flex flex-wrap justify-center gap-2 sm:gap-4 text-sm sm:text-lg">
           <span className="font-bold text-yellow-600">💰 ${wallet}</span>
           <span className="font-bold text-blue-600">🏁 Race {raceNumber}</span>
@@ -88,7 +88,7 @@ function GameGuide({ onStartGame }) {
       <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-6 sm:p-10">
         <div className="text-center mb-8">
           <h1 className="text-4xl sm:text-5xl font-bold text-green-700 mb-4">
-            🏇 Stable Manager 🏇
+            Track Stars
           </h1>
           <p className="text-lg text-gray-600">Build the ultimate horse racing stable!</p>
         </div>
