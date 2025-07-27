@@ -39,10 +39,9 @@ function generateHorse(isPlayer = false, raceNum = 1, specificDistance = null, p
                 GAME_CONSTANTS.AI_BASE_SPEED_BONUS + 
                 (raceNum * GAME_CONSTANTS.AI_SPEED_SCALING);
     
-    // Add player-relative scaling if player's best speed is provided
+    // Use weighted average between AI base speed and player's best speed
     if (playerBestSpeed !== null) {
-      const playerDifference = playerBestSpeed - GAME_CONSTANTS.BASE_SPEED;
-      baseSpeed += playerDifference * GAME_CONSTANTS.AI_PLAYER_RELATIVE;
+      baseSpeed = (baseSpeed * (1 - GAME_CONSTANTS.AI_PLAYER_RELATIVE)) + (playerBestSpeed * GAME_CONSTANTS.AI_PLAYER_RELATIVE);
     }
     
     // AI horses use custom variability

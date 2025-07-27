@@ -27,8 +27,8 @@ const GAME_CONSTANTS = {
   // =============================================================================
   // AI HORSE POWER CALIBRATION (Adjust AI difficulty here!)
   // =============================================================================
-  AI_BASE_SPEED_BONUS: 0,      // Flat bonus to AI horse base speed (0 = same as player)
-  AI_SPEED_SCALING: 4,         // How much stronger AI gets per race (2 = +2 speed per race)
+  AI_BASE_SPEED_BONUS: 2,      // Flat bonus to AI horse base speed (0 = same as player)
+  AI_SPEED_SCALING: 3,         // How much stronger AI gets per race (2 = +2 speed per race)
   AI_PLAYER_RELATIVE: 0.3,     // How much AI scales with player's best horse (0.5 = 50% of difference)
   AI_SPEED_VARIABILITY: 5,     // Random variation in AI horse speed (+/- this value)
   AI_TRAIT_CHANCE: 0.3,        // Chance for AI horses to get 2 traits (0.3 = 30%)
@@ -39,7 +39,7 @@ const GAME_CONSTANTS = {
   // PERFORMANCE IMPACT SCALING (Control genuine mechanical differences!)
   // =============================================================================
   SPEED_IMPACT_SCALING: 0.3,      // How much speed differences matter (0.3 = 30% max difference)
-  DISTANCE_IMPACT_SCALING: 0.4,   // How much distance fit matters (0.4 = 40% max difference)  
+  DISTANCE_IMPACT_SCALING: 0.3,   // How much distance fit matters (0.4 = 40% max difference)  
   EVENT_POWER_SCALING: 0.8,       // How powerful surge/struggle events are (1.0 = normal)
   MOMENTUM_VARIANCE: 0.2,          // Starting momentum variance (lower = more consistent)
   ENERGY_VARIANCE: 30              // Starting energy variance (lower = more consistent)

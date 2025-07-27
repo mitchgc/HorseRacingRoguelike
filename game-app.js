@@ -265,7 +265,7 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
         {/* Your Stable */}
         <div className="bg-white rounded-lg shadow-lg">
           <div className="bg-blue-500 text-white py-4 px-6 rounded-t-lg">
-            <h3 className="text-lg font-bold">🏇 Your Stable ({playerHorses.length})</h3>
+            <h3 className="text-lg font-bold">🏇 Your Stable</h3>
           </div>
           <div className="p-4">
             <div className="space-y-3">
@@ -287,7 +287,7 @@ function HorseSelectionTabs({ playerHorses, aiHorses, selectedHorse, setSelected
         {/* Competition */}
         <div className="bg-white rounded-lg shadow-lg">
           <div className="bg-red-500 text-white py-4 px-6 rounded-t-lg">
-            <h3 className="text-lg font-bold">🕵️ Competition ({aiHorses.length})</h3>
+            <h3 className="text-lg font-bold">🕵️ Competition</h3>
             <p className="text-sm text-red-100">Intelligence Reports</p>
           </div>
           <div className="p-4">
@@ -1262,7 +1262,7 @@ function StableRacingGame() {
         
         // Generate AI horses with player-relative scaling
         const newAiHorses = Array.from({ length: GAME_CONSTANTS.AI_HORSES_COUNT }, () => 
-          generateHorse(false, raceNumber + 1, null, playerBestSpeed)
+          generateHorse(false, raceNumber, null, playerBestSpeed)
         );
         setAiHorses(newAiHorses);
         
@@ -1309,64 +1309,94 @@ function StableRacingGame() {
       const raceType = raceDistance === 1000 ? 'Sprint' : raceDistance === 1800 ? 'Medium' : 'Endurance';
       
       return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-300 p-4 shadow-lg z-40">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 shadow-lg z-40">
           <div className="max-w-6xl mx-auto">
-            {/* Race Info */}
-            <div className="text-center mb-3">
-              <span className="text-lg font-bold text-gray-800">
-                🏁 Race {raceNumber}: {raceDistance}m {raceType}
-              </span>
-            </div>
-            
             {/* Controls */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              {/* Horse Selection Status */}
-              <div className="flex-1 text-center sm:text-left">
-                {selectedHorse ? (
-                  <span className="text-sm sm:text-base">
-                    <span className="font-bold">Horse:</span> {selectedHorse.name}
-                  </span>
-                ) : (
-                  <span className="text-gray-600 text-sm sm:text-base">
-                    Select a horse above
-                  </span>
-                )}
-              </div>
-              
-              {/* Entry Fee Dropdown */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Entry:</label>
-                <select
-                  value={selectedEntryFee?.amount || ''}
-                  onChange={(e) => {
-                    const amount = parseInt(e.target.value);
-                    const fee = entryFees.find(f => f.amount === amount);
-                    setSelectedEntryFee(fee || null);
-                  }}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white"
-                  disabled={entryFees.length === 0}
+            <div className="flex flex-col sm:flex-row items-center sm:justify-center gap-3 sm:gap-4">
+              {/* Mobile: Entry and Start Button Row */}
+              <div className="flex items-center justify-between w-full sm:hidden gap-3">
+                {/* Entry Fee Dropdown */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Entry:</label>
+                  <select
+                    value={selectedEntryFee?.amount || ''}
+                    onChange={(e) => {
+                      const amount = parseInt(e.target.value);
+                      const fee = entryFees.find(f => f.amount === amount);
+                      setSelectedEntryFee(fee || null);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white"
+                    disabled={entryFees.length === 0}
+                  >
+                    <option value="">Select Fee</option>
+                    {entryFees.map(fee => (
+                      <option key={`${fee.amount}-${fee.multiplier}`} value={fee.amount}>
+                        ${fee.amount}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Start Button */}
+                <button
+                  onClick={canStart ? startRace : undefined}
+                  disabled={!canStart}
+                  className={`px-4 py-2 rounded-lg transition-colors text-sm font-bold ${
+                    canStart 
+                      ? 'bg-green-500 text-white hover:bg-green-600' 
+                      : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  }`}
                 >
-                  <option value="">Select Fee</option>
-                  {entryFees.map(fee => (
-                    <option key={`${fee.amount}-${fee.multiplier}`} value={fee.amount}>
-                      ${fee.amount}
-                    </option>
-                  ))}
-                </select>
+                  {canStart ? 'Start 🏁' : 'Select'}
+                </button>
               </div>
-              
-              {/* Start Button */}
-              <button
-                onClick={canStart ? startRace : undefined}
-                disabled={!canStart}
-                className={`px-6 py-3 rounded-lg transition-colors text-base font-bold ${
-                  canStart 
-                    ? 'bg-green-500 text-white hover:bg-green-600' 
-                    : 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                }`}
-              >
-                {canStart ? 'Start Race 🏁' : 'Select Horse & Fee'}
-              </button>
+
+              {/* Desktop: Centered Layout */}
+              <div className="hidden sm:flex items-center gap-4">
+                {/* Horse Selection Status */}
+                <div className="flex-1 text-center">
+                  {!selectedHorse ? (
+                    <span className="text-gray-600 text-sm">
+                      Select a horse above
+                    </span>
+                  ) : null}
+                </div>
+                
+                {/* Entry Fee Dropdown */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">Entry:</label>
+                  <select
+                    value={selectedEntryFee?.amount || ''}
+                    onChange={(e) => {
+                      const amount = parseInt(e.target.value);
+                      const fee = entryFees.find(f => f.amount === amount);
+                      setSelectedEntryFee(fee || null);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium bg-white"
+                    disabled={entryFees.length === 0}
+                  >
+                    <option value="">Select Fee</option>
+                    {entryFees.map(fee => (
+                      <option key={`${fee.amount}-${fee.multiplier}`} value={fee.amount}>
+                        ${fee.amount}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Start Button */}
+                <button
+                  onClick={canStart ? startRace : undefined}
+                  disabled={!canStart}
+                  className={`px-6 py-3 rounded-lg transition-colors text-base font-bold ${
+                    canStart 
+                      ? 'bg-green-500 text-white hover:bg-green-600' 
+                      : 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  }`}
+                >
+                  {canStart ? 'Start Race 🏁' : 'Select Horse & Fee'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
